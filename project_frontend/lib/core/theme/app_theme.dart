@@ -18,7 +18,6 @@ class AppTheme {
       colorScheme: const ColorScheme.dark(
         primary: primaryRed,
         surface: surface,
-        background: background,
       ),
       textTheme: GoogleFonts.urbanistTextTheme(ThemeData.dark().textTheme)
           .copyWith(
