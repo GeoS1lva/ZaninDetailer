@@ -33,9 +33,9 @@ class BookingProvider extends ChangeNotifier {
 
     await Future.delayed(const Duration(milliseconds: 800));
 
-    if (date.weekday == DateTime.sunday) {
+    if (date.weekday == DateTime.monday) {
       availableHours = [];
-    } else if (date.weekday == DateTime.saturday) {
+    } else if (date.weekday == DateTime.sunday) {
       availableHours = ['08:00', '09:00', '10:00', '11:00'];
     } else {
       availableHours = [
