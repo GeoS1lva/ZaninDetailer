@@ -22,6 +22,29 @@ class _ServiceSelectionPageState extends State<ServiceSelectionPage> {
     });
   }
 
+  void _showLoginModal(BuildContext context) {
+    showGeneralDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: '',
+      barrierColor: Colors.black.withValues(alpha: 0.7),
+      transitionDuration: const Duration(milliseconds: 300),
+      pageBuilder: (context, anim1, anim2) => const SizedBox.shrink(),
+      transitionBuilder: (context, anim1, anim2, child) {
+        return BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+          child: ScaleTransition(
+            scale: Tween<double>(begin: 0.9, end: 1.0).animate(anim1),
+            child: FadeTransition(
+              opacity: anim1,
+              child: const AdminLoginDialog(),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<ServiceSelectionProvider>();
@@ -35,7 +58,7 @@ class _ServiceSelectionPageState extends State<ServiceSelectionPage> {
             right: -80,
             child: Container(
               width: 350,
-              height: 550,
+              height: 350,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: AppTheme.primaryRed.withValues(alpha: 0.20),
@@ -72,8 +95,11 @@ class _ServiceSelectionPageState extends State<ServiceSelectionPage> {
                                       color: Colors.white,
                                     ),
                               ),
-                              const Icon(Icons.manage_accounts,
-                                  color: AppTheme.textSecondary, size: 28),
+                              IconButton(
+                                icon: const Icon(Icons.manage_accounts,
+                                    color: AppTheme.textSecondary, size: 28),
+                                onPressed: () => _showLoginModal(context),
+                              ),
                             ],
                           ),
                         ),
@@ -266,6 +292,212 @@ class _ServiceSelectionPageState extends State<ServiceSelectionPage> {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
         image: DecorationImage(image: AssetImage(img), fit: BoxFit.cover),
+      ),
+    );
+  }
+}
+
+class AdminLoginDialog extends StatefulWidget {
+  const AdminLoginDialog({super.key});
+
+  @override
+  State<AdminLoginDialog> createState() => _AdminLoginDialogState();
+}
+
+class _AdminLoginDialogState extends State<AdminLoginDialog> {
+  bool _isPasswordObscured = true;
+  bool _isLoading = false;
+
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _handleLogin() async {
+    FocusScope.of(context).unfocus();
+    setState(() {
+      _isLoading = true;
+    });
+
+    await Future.delayed(const Duration(seconds: 2));
+
+    final email = _emailController.text.trim();
+    final senha = _passwordController.text.trim();
+
+    if (email == 'admin@zanin.com' && senha == 'admin123') {
+      if (mounted) {
+        context.pop();
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Login realizado com sucesso!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Email ou senha incorretos.'),
+            backgroundColor: AppTheme.primaryRed,
+          ),
+        );
+      }
+    }
+
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Stack(
+        alignment: Alignment.topCenter,
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            width: double.infinity,
+            constraints: const BoxConstraints(maxWidth: 400),
+            padding: const EdgeInsets.fromLTRB(24, 60, 24, 24),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1A1A1A),
+              borderRadius: BorderRadius.circular(28),
+              border:
+                  Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildInput(
+                  controller: _emailController,
+                  hint: 'Email',
+                  icon: Icons.email_outlined,
+                  enabled: !_isLoading,
+                ),
+                const SizedBox(height: 16),
+                _buildInput(
+                  controller: _passwordController,
+                  hint: 'Senha',
+                  icon: Icons.lock_outline,
+                  isPassword: true,
+                  isObscured: _isPasswordObscured,
+                  enabled: !_isLoading,
+                  onToggleVisibility: () {
+                    setState(() {
+                      _isPasswordObscured = !_isPasswordObscured;
+                    });
+                  },
+                ),
+                const SizedBox(height: 32),
+                SizedBox(
+                  width: double.infinity,
+                  height: 55,
+                  child: ElevatedButton(
+                    onPressed: _isLoading ? null : _handleLogin,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primaryRed,
+                      disabledBackgroundColor:
+                          AppTheme.primaryRed.withValues(alpha: 0.5),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      elevation: 0,
+                    ),
+                    child: _isLoading
+                        ? const SizedBox(
+                            height: 24,
+                            width: 24,
+                            child: CircularProgressIndicator(
+                                color: Colors.white, strokeWidth: 2.5),
+                          )
+                        : const Text(
+                            'Acessar Painel',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Positioned(
+            top: -30,
+            child: Container(
+              width: 70,
+              height: 70,
+              decoration: BoxDecoration(
+                color: AppTheme.primaryRed,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: AppTheme.primaryRed.withValues(alpha: 0.3),
+                    blurRadius: 20,
+                    spreadRadius: 5,
+                  )
+                ],
+              ),
+              child:
+                  const Icon(Icons.lock_person, color: Colors.white, size: 35),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInput({
+    required TextEditingController controller,
+    required String hint,
+    required IconData icon,
+    bool isPassword = false,
+    bool isObscured = false,
+    bool enabled = true,
+    VoidCallback? onToggleVisibility,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFF121212),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+      ),
+      child: TextField(
+        controller: controller,
+        obscureText: isPassword ? isObscured : false,
+        enabled: enabled,
+        style: TextStyle(color: enabled ? Colors.white : Colors.grey),
+        decoration: InputDecoration(
+          hintText: hint,
+          hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.3)),
+          prefixIcon: Icon(icon, color: Colors.white.withValues(alpha: 0.3)),
+          suffixIcon: isPassword
+              ? IconButton(
+                  icon: Icon(
+                    isObscured
+                        ? Icons.visibility_off_outlined
+                        : Icons.visibility_outlined,
+                    color: AppTheme.primaryRed.withValues(alpha: 0.7),
+                  ),
+                  onPressed: onToggleVisibility,
+                )
+              : null,
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(vertical: 15),
+        ),
       ),
     );
   }

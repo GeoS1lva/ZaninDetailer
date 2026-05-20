@@ -1,14 +1,16 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/router/app_router.dart';
 import '../providers/booking_provider.dart';
 import '../providers/service_selection_provider.dart';
-import 'package:go_router/go_router.dart';
-import '../../../../core/router/app_router.dart';
 
 class BookingPage extends StatefulWidget {
   final ServiceModel service;
+
   const BookingPage({super.key, required this.service});
 
   @override
@@ -29,6 +31,51 @@ class _BookingPageState extends State<BookingPage> {
     return text[0].toUpperCase() + text.substring(1).toLowerCase();
   }
 
+  List<DateTime> _getUpcomingSaturdays() {
+    List<DateTime> saturdays = [];
+    DateTime date = DateTime.now();
+    while (saturdays.length < 6) {
+      if (date.weekday == DateTime.saturday) {
+        saturdays.add(date);
+      }
+      date = date.add(const Duration(days: 1));
+    }
+    return saturdays;
+  }
+
+  Future<void> _openFullCalendar(
+      BuildContext context, BookingProvider provider) async {
+    final DateTime now = DateTime.now();
+    final DateTime lastDayOfNextMonth = DateTime(now.year, now.month + 2, 0);
+
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: provider.selectedDate.weekday == DateTime.saturday
+          ? provider.selectedDate
+          : _getUpcomingSaturdays().first,
+      firstDate: now,
+      lastDate: lastDayOfNextMonth,
+      selectableDayPredicate: (DateTime day) =>
+          day.weekday == DateTime.saturday,
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.dark(
+              primary: AppTheme.primaryRed,
+              onPrimary: Colors.white,
+              surface: AppTheme.surface,
+              onSurface: Colors.white,
+            ),
+            dialogBackgroundColor: AppTheme.background,
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null) provider.selectDate(picked);
+  }
+
   @override
   Widget build(BuildContext context) {
     final bookingProvider = context.watch<BookingProvider>();
@@ -47,10 +94,7 @@ class _BookingPageState extends State<BookingPage> {
                     SizedBox(
                       height: 380,
                       width: double.infinity,
-                      child: Image.asset(
-                        service.imageUrl,
-                        fit: BoxFit.cover,
-                      ),
+                      child: Image.asset(service.imageUrl, fit: BoxFit.cover),
                     ),
                     Container(
                       height: 380,
@@ -108,32 +152,78 @@ class _BookingPageState extends State<BookingPage> {
                             color: AppTheme.textSecondary, fontSize: 14),
                       ),
                       const SizedBox(height: 40),
-                      Text(
-                        'Data e Horario',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
+                      Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          Positioned.fill(
+                            child: Align(
+                              alignment: Alignment.center,
+                              child: Container(
+                                height: 200,
+                                decoration: BoxDecoration(
+                                    color: Colors.transparent,
+                                    shape: BoxShape.circle,
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: AppTheme.primaryRed
+                                            .withValues(alpha: 0.05),
+                                        blurRadius: 80,
+                                        spreadRadius: 20,
+                                      )
+                                    ]),
+                              ),
                             ),
+                          ),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    'Data e Horário',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleLarge
+                                        ?.copyWith(
+                                          fontSize: 20,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
+                                        ),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.calendar_month,
+                                        color: AppTheme.primaryRed, size: 26),
+                                    onPressed: () => _openFullCalendar(
+                                        context, bookingProvider),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 20),
+                              SizedBox(
+                                height: 130,
+                                child:
+                                    _buildHorizontalCalendar(bookingProvider),
+                              ),
+                              const SizedBox(height: 30),
+                              if (bookingProvider.isLoadingHours)
+                                const Center(
+                                    child: CircularProgressIndicator(
+                                        color: AppTheme.primaryRed))
+                              else if (bookingProvider.availableHours.isEmpty)
+                                const Padding(
+                                  padding: EdgeInsets.all(20.0),
+                                  child: Text('Nenhum horário disponível.',
+                                      style: TextStyle(
+                                          color: AppTheme.textSecondary)),
+                                )
+                              else
+                                _buildTimeSlots(context, bookingProvider),
+                            ],
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 20),
-                      SizedBox(
-                        height: 100,
-                        child: _buildHorizontalCalendar(bookingProvider),
-                      ),
-                      const SizedBox(height: 30),
-                      if (bookingProvider.isLoadingHours)
-                        const Center(
-                            child: CircularProgressIndicator(
-                                color: AppTheme.primaryRed))
-                      else if (bookingProvider.availableHours.isEmpty)
-                        const Padding(
-                          padding: EdgeInsets.all(20.0),
-                          child: Text('Nenhum horário disponível.',
-                              style: TextStyle(color: AppTheme.textSecondary)),
-                        )
-                      else
-                        _buildTimeSlots(context, bookingProvider),
                       const SizedBox(height: 120),
                     ],
                   ),
@@ -164,8 +254,7 @@ class _BookingPageState extends State<BookingPage> {
   }
 
   Widget _buildHorizontalCalendar(BookingProvider provider) {
-    final today = DateTime.now();
-    final days = List.generate(14, (index) => today.add(Duration(days: index)));
+    final List<DateTime> days = _getUpcomingSaturdays();
 
     return ListView.builder(
       scrollDirection: Axis.horizontal,
@@ -180,34 +269,41 @@ class _BookingPageState extends State<BookingPage> {
 
         return GestureDetector(
           onTap: () => provider.selectDate(date),
-          child: Container(
-            width: 70,
-            margin: const EdgeInsets.only(right: 16),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            width: 85,
+            margin: const EdgeInsets.only(right: 16, bottom: 10, top: 10),
             decoration: BoxDecoration(
-              color: isSelected ? AppTheme.primaryRed : Colors.transparent,
-              borderRadius: BorderRadius.circular(40),
+              color: isSelected ? AppTheme.primaryRed : const Color(0xFF121212),
+              borderRadius: BorderRadius.circular(30),
               border: isSelected
                   ? null
-                  : Border.all(
-                      color: Colors.white.withValues(alpha: 0.2), width: 1),
+                  : Border.all(color: const Color(0xFF888888), width: 1.5),
+              boxShadow: isSelected
+                  ? [
+                      BoxShadow(
+                        color: AppTheme.primaryRed.withValues(alpha: 0.5),
+                        blurRadius: 15,
+                        spreadRadius: 2,
+                        offset: const Offset(0, 0),
+                      )
+                    ]
+                  : [],
             ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(dayNumber,
                     style: TextStyle(
-                        fontSize: 22,
+                        fontSize: 28,
                         color: Colors.white,
                         fontWeight:
                             isSelected ? FontWeight.bold : FontWeight.w600)),
-                const SizedBox(height: 4),
+                const SizedBox(height: 6),
                 Text(dayOfWeek,
                     style: TextStyle(
-                        fontSize: 16,
-                        color:
-                            isSelected ? Colors.white : AppTheme.textSecondary,
-                        fontWeight:
-                            isSelected ? FontWeight.bold : FontWeight.normal)),
+                        fontSize: 18,
+                        color: isSelected ? Colors.white : Colors.grey[400])),
               ],
             ),
           ),
@@ -228,25 +324,33 @@ class _BookingPageState extends State<BookingPage> {
 
         return GestureDetector(
           onTap: () => provider.selectTime(time),
-          child: Container(
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
             width: buttonWidth,
-            padding: const EdgeInsets.symmetric(vertical: 16),
+            padding: const EdgeInsets.symmetric(vertical: 10),
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: isSelected ? AppTheme.primaryRed : Colors.transparent,
+              color: isSelected ? AppTheme.primaryRed : const Color(0xFF121212),
               borderRadius: BorderRadius.circular(12),
               border: isSelected
                   ? null
-                  : Border.all(
-                      color: Colors.white.withValues(alpha: 0.2), width: 1),
+                  : Border.all(color: const Color(0xFF888888), width: 1.5),
+              boxShadow: isSelected
+                  ? [
+                      BoxShadow(
+                        color: AppTheme.primaryRed.withValues(alpha: 0.4),
+                        blurRadius: 12,
+                        spreadRadius: 1,
+                      )
+                    ]
+                  : [],
             ),
             child: Text(
               time,
               style: TextStyle(
-                color: Colors.white,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                fontSize: 16,
-              ),
+                  color: isSelected ? Colors.white : Colors.grey[300],
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                  fontSize: 17),
             ),
           ),
         );
@@ -258,12 +362,7 @@ class _BookingPageState extends State<BookingPage> {
     final bool isActive = provider.selectedTime != null;
 
     return GestureDetector(
-      onTap: isActive
-          ? () {
-              debugPrint(
-                  "Avançar clicado: ${provider.selectedDate} as ${provider.selectedTime}");
-            }
-          : null,
+      onTap: isActive ? () {} : null,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 300),
         height: 65,
@@ -276,7 +375,7 @@ class _BookingPageState extends State<BookingPage> {
           boxShadow: isActive
               ? [
                   BoxShadow(
-                      color: AppTheme.primaryRed.withValues(alpha: 0.2),
+                      color: AppTheme.primaryRed.withValues(alpha: 0.3),
                       blurRadius: 15,
                       spreadRadius: 1)
                 ]
@@ -290,30 +389,23 @@ class _BookingPageState extends State<BookingPage> {
                 width: 50,
                 height: 50,
                 decoration: const BoxDecoration(
-                  color: AppTheme.primaryRed,
-                  shape: BoxShape.circle,
-                ),
+                    color: AppTheme.primaryRed, shape: BoxShape.circle),
                 child: const Icon(Icons.arrow_forward_ios,
                     color: Colors.white, size: 20),
               ),
               const Expanded(
-                child: Center(
-                  child: Text(
-                    'Avançar',
-                    style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500),
-                  ),
-                ),
-              ),
+                  child: Center(
+                      child: Text('Avançar',
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500)))),
               const Icon(Icons.arrow_forward_ios,
                   color: Colors.white54, size: 16),
               Transform.translate(
-                offset: const Offset(-8, 0),
-                child: const Icon(Icons.arrow_forward_ios,
-                    color: Colors.white54, size: 16),
-              ),
+                  offset: const Offset(-8, 0),
+                  child: const Icon(Icons.arrow_forward_ios,
+                      color: Colors.white54, size: 16)),
               const SizedBox(width: 8),
             ],
           ),

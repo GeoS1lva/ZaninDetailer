@@ -5,6 +5,7 @@ import 'core/theme/app_theme.dart';
 import 'features/client_booking/presentation/providers/service_selection_provider.dart';
 import 'features/client_booking/presentation/providers/booking_provider.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -32,6 +33,14 @@ class ZaninDetailerApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.darkTheme,
       routerConfig: AppRouter.router,
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('pt', 'BR'), // Força o app inteiro a usar o padrão do Brasil
+      ],
     );
   }
 }
