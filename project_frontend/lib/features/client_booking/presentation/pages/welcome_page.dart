@@ -8,6 +8,8 @@ class WelcomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+
     return Scaffold(
       resizeToAvoidBottomInset: false,
       body: Stack(
@@ -47,10 +49,8 @@ class WelcomePage extends StatelessWidget {
                   RichText(
                     textAlign: TextAlign.center,
                     text: TextSpan(
-                      style: Theme.of(context).textTheme.displayLarge?.copyWith(
-                            fontSize: 32,
-                            height: 1.2,
-                          ),
+                      style: textTheme.headlineLarge
+                          ?.copyWith(fontSize: 32, height: 1.2),
                       children: const [
                         TextSpan(text: 'SEJA BEM VINDO AO\nZANIN '),
                         TextSpan(
@@ -64,11 +64,10 @@ class WelcomePage extends StatelessWidget {
                   Text(
                     'Agende seu detalhamento automotivo de forma rápida e garanta o brilho que seu carro merece.',
                     textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          color: AppTheme.textSecondary,
-                          fontSize: 16,
-                          height: 1.5,
-                        ),
+                    style: textTheme.bodyLarge?.copyWith(
+                      color: AppTheme.textSecondary,
+                      height: 1.5,
+                    ),
                   ),
                   const SizedBox(height: 48),
                   Row(
@@ -76,7 +75,8 @@ class WelcomePage extends StatelessWidget {
                     children: [
                       FloatingActionButton(
                         onPressed: () => context.go(AppRouter.services),
-                        backgroundColor: AppTheme.primaryRed.withOpacity(0.9),
+                        backgroundColor:
+                            AppTheme.primaryRed.withValues(alpha: 0.9),
                         elevation: 0,
                         highlightElevation: 0,
                         shape: const CircleBorder(),

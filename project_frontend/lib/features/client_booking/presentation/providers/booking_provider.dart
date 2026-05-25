@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'service_selection_provider.dart';
+import '../../data/models/service_model.dart';
 
 class BookingProvider extends ChangeNotifier {
   ServiceModel? selectedService;

@@ -6,11 +6,10 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/router/app_router.dart';
 import '../providers/booking_provider.dart';
-import '../providers/service_selection_provider.dart';
+import '../../../../features/client_booking/data/models/service_model.dart';
 
 class BookingPage extends StatefulWidget {
   final ServiceModel service;
-
   const BookingPage({super.key, required this.service});
 
   @override
@@ -35,9 +34,7 @@ class _BookingPageState extends State<BookingPage> {
     List<DateTime> saturdays = [];
     DateTime date = DateTime.now();
     while (saturdays.length < 6) {
-      if (date.weekday == DateTime.saturday) {
-        saturdays.add(date);
-      }
+      if (date.weekday == DateTime.saturday) saturdays.add(date);
       date = date.add(const Duration(days: 1));
     }
     return saturdays;
@@ -61,18 +58,16 @@ class _BookingPageState extends State<BookingPage> {
         return Theme(
           data: Theme.of(context).copyWith(
             colorScheme: const ColorScheme.dark(
-              primary: AppTheme.primaryRed,
-              onPrimary: Colors.white,
-              surface: AppTheme.surface,
-              onSurface: Colors.white,
-            ),
+                primary: AppTheme.primaryRed,
+                onPrimary: Colors.white,
+                surface: AppTheme.surface,
+                onSurface: Colors.white),
             dialogBackgroundColor: AppTheme.background,
           ),
           child: child!,
         );
       },
     );
-
     if (picked != null) provider.selectDate(picked);
   }
 
@@ -80,6 +75,7 @@ class _BookingPageState extends State<BookingPage> {
   Widget build(BuildContext context) {
     final bookingProvider = context.watch<BookingProvider>();
     final service = widget.service;
+    final textTheme = Theme.of(context).textTheme;
 
     return Scaffold(
       backgroundColor: AppTheme.background,
@@ -92,10 +88,10 @@ class _BookingPageState extends State<BookingPage> {
                 Stack(
                   children: [
                     SizedBox(
-                      height: 380,
-                      width: double.infinity,
-                      child: Image.asset(service.imageUrl, fit: BoxFit.cover),
-                    ),
+                        height: 380,
+                        width: double.infinity,
+                        child:
+                            Image.asset(service.imageUrl, fit: BoxFit.cover)),
                     Container(
                       height: 380,
                       decoration: BoxDecoration(
@@ -106,7 +102,7 @@ class _BookingPageState extends State<BookingPage> {
                             Colors.black.withValues(alpha: 0.3),
                             Colors.transparent,
                             AppTheme.background.withValues(alpha: 0.8),
-                            AppTheme.background,
+                            AppTheme.background
                           ],
                           stops: const [0.0, 0.4, 0.8, 1.0],
                         ),
@@ -121,9 +117,8 @@ class _BookingPageState extends State<BookingPage> {
                           width: 40,
                           height: 40,
                           decoration: BoxDecoration(
-                            color: AppTheme.primaryRed.withValues(alpha: 0.3),
-                            shape: BoxShape.circle,
-                          ),
+                              color: AppTheme.primaryRed.withValues(alpha: 0.3),
+                              shape: BoxShape.circle),
                           child: const Icon(Icons.arrow_back_ios_new,
                               color: Colors.white, size: 18),
                         ),
@@ -136,21 +131,13 @@ class _BookingPageState extends State<BookingPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        service.title,
-                        style:
-                            Theme.of(context).textTheme.displayLarge?.copyWith(
-                                  fontSize: 26,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                      ),
+                      Text(service.title,
+                          style:
+                              textTheme.headlineLarge?.copyWith(fontSize: 26)),
                       const SizedBox(height: 8),
                       Text(
-                        'Duração: ~${service.duration} • R\$ ${service.price}.',
-                        style: const TextStyle(
-                            color: AppTheme.textSecondary, fontSize: 14),
-                      ),
+                          'Duração: ~${service.duration} • R\$ ${service.price}.',
+                          style: textTheme.bodyMedium),
                       const SizedBox(height: 40),
                       Stack(
                         clipBehavior: Clip.none,
@@ -165,11 +152,10 @@ class _BookingPageState extends State<BookingPage> {
                                     shape: BoxShape.circle,
                                     boxShadow: [
                                       BoxShadow(
-                                        color: AppTheme.primaryRed
-                                            .withValues(alpha: 0.05),
-                                        blurRadius: 80,
-                                        spreadRadius: 20,
-                                      )
+                                          color: AppTheme.primaryRed
+                                              .withValues(alpha: 0.05),
+                                          blurRadius: 80,
+                                          spreadRadius: 20)
                                     ]),
                               ),
                             ),
@@ -181,17 +167,8 @@ class _BookingPageState extends State<BookingPage> {
                                 mainAxisAlignment:
                                     MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Text(
-                                    'Data e Horário',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .titleLarge
-                                        ?.copyWith(
-                                          fontSize: 20,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.white,
-                                        ),
-                                  ),
+                                  Text('Data e Horário',
+                                      style: textTheme.titleLarge),
                                   IconButton(
                                     icon: const Icon(Icons.calendar_month,
                                         color: AppTheme.primaryRed, size: 26),
@@ -202,24 +179,23 @@ class _BookingPageState extends State<BookingPage> {
                               ),
                               const SizedBox(height: 20),
                               SizedBox(
-                                height: 130,
-                                child:
-                                    _buildHorizontalCalendar(bookingProvider),
-                              ),
+                                  height: 130,
+                                  child: _buildHorizontalCalendar(
+                                      bookingProvider, textTheme)),
                               const SizedBox(height: 30),
                               if (bookingProvider.isLoadingHours)
                                 const Center(
                                     child: CircularProgressIndicator(
                                         color: AppTheme.primaryRed))
                               else if (bookingProvider.availableHours.isEmpty)
-                                const Padding(
-                                  padding: EdgeInsets.all(20.0),
+                                Padding(
+                                  padding: const EdgeInsets.all(20.0),
                                   child: Text('Nenhum horário disponível.',
-                                      style: TextStyle(
-                                          color: AppTheme.textSecondary)),
+                                      style: textTheme.bodyMedium),
                                 )
                               else
-                                _buildTimeSlots(context, bookingProvider),
+                                _buildTimeSlots(
+                                    context, bookingProvider, textTheme),
                             ],
                           ),
                         ],
@@ -236,16 +212,14 @@ class _BookingPageState extends State<BookingPage> {
             child: Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
+                  gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
                     AppTheme.background.withValues(alpha: 0.0),
                     AppTheme.background
-                  ],
-                ),
-              ),
-              child: _buildCustomCTAButton(bookingProvider),
+                  ])),
+              child: _buildCustomCTAButton(bookingProvider, textTheme),
             ),
           ),
         ],
@@ -253,16 +227,15 @@ class _BookingPageState extends State<BookingPage> {
     );
   }
 
-  Widget _buildHorizontalCalendar(BookingProvider provider) {
+  Widget _buildHorizontalCalendar(
+      BookingProvider provider, TextTheme textTheme) {
     final List<DateTime> days = _getUpcomingSaturdays();
-
     return ListView.builder(
       scrollDirection: Axis.horizontal,
       itemCount: days.length,
       itemBuilder: (context, index) {
         final date = days[index];
         final isSelected = DateUtils.isSameDay(date, provider.selectedDate);
-
         final dayNumber = DateFormat('d').format(date);
         final dayOfWeek = _capitalize(
             DateFormat('E', 'pt_BR').format(date).replaceAll('.', ''));
@@ -282,11 +255,10 @@ class _BookingPageState extends State<BookingPage> {
               boxShadow: isSelected
                   ? [
                       BoxShadow(
-                        color: AppTheme.primaryRed.withValues(alpha: 0.5),
-                        blurRadius: 15,
-                        spreadRadius: 2,
-                        offset: const Offset(0, 0),
-                      )
+                          color: AppTheme.primaryRed.withValues(alpha: 0.5),
+                          blurRadius: 15,
+                          spreadRadius: 2,
+                          offset: const Offset(0, 0))
                     ]
                   : [],
             ),
@@ -294,14 +266,14 @@ class _BookingPageState extends State<BookingPage> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(dayNumber,
-                    style: TextStyle(
+                    style: textTheme.headlineLarge?.copyWith(
                         fontSize: 28,
-                        color: Colors.white,
                         fontWeight:
-                            isSelected ? FontWeight.bold : FontWeight.w600)),
+                            isSelected ? FontWeight.bold : FontWeight.w600,
+                        color: Colors.white)),
                 const SizedBox(height: 6),
                 Text(dayOfWeek,
-                    style: TextStyle(
+                    style: textTheme.bodyLarge?.copyWith(
                         fontSize: 18,
                         color: isSelected ? Colors.white : Colors.grey[400])),
               ],
@@ -312,16 +284,15 @@ class _BookingPageState extends State<BookingPage> {
     );
   }
 
-  Widget _buildTimeSlots(BuildContext context, BookingProvider provider) {
-    final double screenWidth = MediaQuery.of(context).size.width;
-    final double buttonWidth = (screenWidth - 48 - 16) / 2;
-
+  Widget _buildTimeSlots(
+      BuildContext context, BookingProvider provider, TextTheme textTheme) {
+    final double buttonWidth =
+        (MediaQuery.of(context).size.width - 48 - 16) / 2;
     return Wrap(
       spacing: 16,
       runSpacing: 16,
       children: provider.availableHours.map<Widget>((time) {
         final isSelected = time == provider.selectedTime;
-
         return GestureDetector(
           onTap: () => provider.selectTime(time),
           child: AnimatedContainer(
@@ -338,29 +309,25 @@ class _BookingPageState extends State<BookingPage> {
               boxShadow: isSelected
                   ? [
                       BoxShadow(
-                        color: AppTheme.primaryRed.withValues(alpha: 0.4),
-                        blurRadius: 12,
-                        spreadRadius: 1,
-                      )
+                          color: AppTheme.primaryRed.withValues(alpha: 0.4),
+                          blurRadius: 12,
+                          spreadRadius: 1)
                     ]
                   : [],
             ),
-            child: Text(
-              time,
-              style: TextStyle(
-                  color: isSelected ? Colors.white : Colors.grey[300],
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                  fontSize: 17),
-            ),
+            child: Text(time,
+                style: textTheme.bodyLarge?.copyWith(
+                    color: isSelected ? Colors.white : Colors.grey[300],
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                    fontSize: 17)),
           ),
         );
       }).toList(),
     );
   }
 
-  Widget _buildCustomCTAButton(BookingProvider provider) {
+  Widget _buildCustomCTAButton(BookingProvider provider, TextTheme textTheme) {
     final bool isActive = provider.selectedTime != null;
-
     return GestureDetector(
       onTap: isActive ? () {} : null,
       child: AnimatedContainer(
@@ -386,20 +353,15 @@ class _BookingPageState extends State<BookingPage> {
           child: Row(
             children: [
               Container(
-                width: 50,
-                height: 50,
-                decoration: const BoxDecoration(
-                    color: AppTheme.primaryRed, shape: BoxShape.circle),
-                child: const Icon(Icons.arrow_forward_ios,
-                    color: Colors.white, size: 20),
-              ),
-              const Expanded(
+                  width: 50,
+                  height: 50,
+                  decoration: const BoxDecoration(
+                      color: AppTheme.primaryRed, shape: BoxShape.circle),
+                  child: const Icon(Icons.arrow_forward_ios,
+                      color: Colors.white, size: 20)),
+              Expanded(
                   child: Center(
-                      child: Text('Avançar',
-                          style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w500)))),
+                      child: Text('Avançar', style: textTheme.labelLarge))),
               const Icon(Icons.arrow_forward_ios,
                   color: Colors.white54, size: 16),
               Transform.translate(
