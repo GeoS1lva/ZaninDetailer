@@ -44,6 +44,17 @@ class _ServiceSelectionPageState extends State<ServiceSelectionPage> {
     );
   }
 
+  Widget _buildSectionTitle(String title, TextTheme textTheme) {
+    return Text(
+      title,
+      style: textTheme.titleLarge?.copyWith(
+        fontSize: 22,
+        fontWeight: FontWeight.bold,
+        color: Colors.white,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<ServiceSelectionProvider>();
@@ -82,9 +93,8 @@ class _ServiceSelectionPageState extends State<ServiceSelectionPage> {
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
-                              Text('Escolha o Serviço',
-                                  style: textTheme.titleLarge
-                                      ?.copyWith(fontSize: 22)),
+                              _buildSectionTitle(
+                                  'Escolha o Serviço', textTheme),
                               IconButton(
                                 icon: const Icon(Icons.manage_accounts,
                                     color: AppTheme.textSecondary, size: 28),
@@ -96,7 +106,7 @@ class _ServiceSelectionPageState extends State<ServiceSelectionPage> {
                       ),
                       SliverToBoxAdapter(
                         child: SizedBox(
-                          height: 260,
+                          height: 280,
                           child: ListView.builder(
                             scrollDirection: Axis.horizontal,
                             padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -109,15 +119,14 @@ class _ServiceSelectionPageState extends State<ServiceSelectionPage> {
                         ),
                       ),
                       SliverPadding(
-                        padding: const EdgeInsets.symmetric(
-                            vertical: 32, horizontal: 20),
+                        padding: const EdgeInsets.only(
+                            top: 40, left: 20, right: 20, bottom: 24),
                         sliver: SliverToBoxAdapter(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('Produtos de Alta Performance',
-                                  style: textTheme.titleLarge
-                                      ?.copyWith(fontSize: 18)),
+                              _buildSectionTitle(
+                                  'Produtos de Alta Performance', textTheme),
                               const SizedBox(height: 24),
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.start,
@@ -130,12 +139,12 @@ class _ServiceSelectionPageState extends State<ServiceSelectionPage> {
                                                 Colors.grey, BlendMode.srcATop),
                                             child: Image.asset(
                                               logoPath,
-                                              height: 85,
+                                              height: 60,
                                               fit: BoxFit.contain,
                                               errorBuilder: (c, e, s) =>
                                                   Container(
                                                 width: 100,
-                                                height: 85,
+                                                height: 60,
                                                 alignment: Alignment.center,
                                                 decoration: BoxDecoration(
                                                     color: Colors.white12,
@@ -157,17 +166,17 @@ class _ServiceSelectionPageState extends State<ServiceSelectionPage> {
                         ),
                       ),
                       SliverPadding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        padding:
+                            const EdgeInsets.only(top: 40, left: 20, right: 20),
                         sliver: SliverToBoxAdapter(
-                          child: Text('Últimos Trabalhos',
-                              style:
-                                  textTheme.titleLarge?.copyWith(fontSize: 18)),
+                          child: _buildSectionTitle(
+                              'Últimos Trabalhos', textTheme),
                         ),
                       ),
                       SliverToBoxAdapter(
                         child: Container(
                           height: 340,
-                          margin: const EdgeInsets.only(top: 20, bottom: 40),
+                          margin: const EdgeInsets.only(top: 24, bottom: 40),
                           child: ListView.builder(
                             scrollDirection: Axis.horizontal,
                             padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -191,55 +200,81 @@ class _ServiceSelectionPageState extends State<ServiceSelectionPage> {
     return GestureDetector(
       onTap: () => context.go(AppRouter.booking, extra: service),
       child: Container(
-        width: 250,
+        width: 260,
         margin: const EdgeInsets.only(right: 16),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
           image: DecorationImage(
-              image: AssetImage(service.imageUrl), fit: BoxFit.cover),
+            image: AssetImage(service.imageUrl),
+            fit: BoxFit.cover,
+          ),
         ),
-        child: Stack(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.end,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              child: ClipRRect(
-                borderRadius:
-                    const BorderRadius.vertical(bottom: Radius.circular(20)),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                  child: Container(
-                    padding: const EdgeInsets.all(16.0),
-                    color: Colors.black.withValues(alpha: 0.4),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(service.title,
-                            style: textTheme.titleLarge?.copyWith(fontSize: 17),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis),
-                        const SizedBox(height: 6),
-                        Text(
-                            'Duração: ~${service.duration} • R\$ ${service.price}',
-                            style: textTheme.bodyMedium?.copyWith(
-                                color: Colors.white.withValues(alpha: 0.9))),
-                      ],
+            ClipRRect(
+              borderRadius:
+                  const BorderRadius.vertical(bottom: Radius.circular(19)),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                child: Container(
+                  padding: const EdgeInsets.all(16.0),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.55),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.2),
+                      width: 1.2,
                     ),
+                    borderRadius: const BorderRadius.vertical(
+                        bottom: Radius.circular(19)),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              service.title,
+                              style: textTheme.titleLarge?.copyWith(
+                                fontSize: 17,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              'Duração: ~${service.duration} • R\$ ${service.price.toStringAsFixed(2).replaceAll('.', ',')}',
+                              style: textTheme.bodyMedium?.copyWith(
+                                color: Colors.grey[300],
+                                fontSize: 13,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        width: 38,
+                        height: 38,
+                        decoration: BoxDecoration(
+                          color: AppTheme.primaryRed.withValues(alpha: 0.9),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.arrow_forward_ios,
+                            size: 14, color: Colors.white),
+                      ),
+                    ],
                   ),
                 ),
               ),
             ),
-            Positioned(
-              right: 12,
-              bottom: 16,
-              child: CircleAvatar(
-                backgroundColor: AppTheme.primaryRed.withValues(alpha: 0.9),
-                radius: 16,
-                child: const Icon(Icons.arrow_forward_ios,
-                    size: 14, color: Colors.white),
-              ),
-            )
           ],
         ),
       ),

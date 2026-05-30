@@ -11,5 +11,9 @@ abstract class IBookingRepository {
     required ServiceModel service,
     required DateTime date,
     required String time,
+    required String clientName,
+    required String whatsapp,    
+    required String licensePlate,
+    required String vehicleModel, 
   });
 }

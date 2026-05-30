@@ -112,54 +112,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: AppTheme.primaryRed,
-        shape: const CircleBorder(),
-        onPressed: () {
-          showModalBottomSheet(
-            context: context,
-            backgroundColor: const Color(0xFF161616),
-            shape: const RoundedRectangleBorder(
-                borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-            builder: (context) => SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 20.0),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    ListTile(
-                      leading: const Icon(Icons.car_repair,
-                          color: AppTheme.primaryRed),
-                      title: Text('Novo Serviço', style: textTheme.labelLarge),
-                      subtitle: Text('Cadastre pacotes como Lavagem Essencial',
-                          style: textTheme.bodyMedium?.copyWith(fontSize: 12)),
-                      onTap: () {
-                        context.pop();
-                        context.go(AppRouter.adminNovoServico);
-                      },
-                    ),
-                    Divider(color: Colors.white.withValues(alpha: 0.1)),
-                    ListTile(
-                      leading: const Icon(Icons.branding_watermark,
-                          color: AppTheme.primaryRed),
-                      title: Text('Nova Marca Parceira',
-                          style: textTheme.labelLarge),
-                      subtitle: Text(
-                          'Faça upload de logos como Vonixx e Meguiar\'s',
-                          style: textTheme.bodyMedium?.copyWith(fontSize: 12)),
-                      onTap: () {
-                        context.pop();
-                        context.go(AppRouter.adminNovaMarca);
-                      },
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          );
-        },
-        child: const Icon(Icons.add, color: Colors.white, size: 30),
-      ),
+      floatingActionButton: const CustomSpeedDial(),
     );
   }
 
@@ -176,9 +129,12 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       ),
       child: Column(
         children: [
-          Text(value,
-              style: textTheme.headlineLarge
-                  ?.copyWith(color: AppTheme.primaryRed, fontSize: 32)),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(value,
+                style: textTheme.headlineLarge
+                    ?.copyWith(color: AppTheme.primaryRed, fontSize: 32)),
+          ),
           const SizedBox(height: 8),
           Text(label, textAlign: TextAlign.center, style: textTheme.bodyMedium),
         ],
@@ -238,6 +194,153 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+class CustomSpeedDial extends StatefulWidget {
+  const CustomSpeedDial({super.key});
+
+  @override
+  State<CustomSpeedDial> createState() => _CustomSpeedDialState();
+}
+
+class _CustomSpeedDialState extends State<CustomSpeedDial>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _expandAnimation;
+  bool _isOpen = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      value: 0.0,
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+    _expandAnimation = CurvedAnimation(
+      curve: Curves.easeOutBack,
+      reverseCurve: Curves.easeIn,
+      parent: _controller,
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _toggle() {
+    setState(() {
+      _isOpen = !_isOpen;
+      if (_isOpen) {
+        _controller.forward();
+      } else {
+        _controller.reverse();
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        _buildAnimatedButton(
+          title: "Nova Marca",
+          icon: Icons.branding_watermark,
+          onTap: () => context.go(AppRouter.adminNovaMarca),
+          index: 2,
+        ),
+        _buildAnimatedButton(
+          title: "Novo Serviço",
+          icon: Icons.car_repair,
+          onTap: () => context.go(AppRouter.adminNovoServico),
+          index: 1,
+        ),
+        FloatingActionButton(
+          backgroundColor: AppTheme.primaryRed,
+          onPressed: _toggle,
+          child: RotationTransition(
+            turns:
+                Tween<double>(begin: 0.0, end: 0.125).animate(_expandAnimation),
+            child: const Icon(Icons.add, color: Colors.white, size: 32),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAnimatedButton(
+      {required String title,
+      required IconData icon,
+      required VoidCallback onTap,
+      required int index}) {
+    final animationInterval = CurvedAnimation(
+      parent: _controller,
+      curve: Interval(0.0, 1.0 - (index * 0.2), curve: Curves.easeOutBack),
+    );
+
+    final slideAnimation =
+        Tween<Offset>(begin: const Offset(0.3, 0), end: Offset.zero)
+            .animate(animationInterval);
+
+    return SlideTransition(
+      position: slideAnimation,
+      child: ScaleTransition(
+        scale: animationInterval,
+        child: FadeTransition(
+          opacity: animationInterval,
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 16.0),
+            child: GestureDetector(
+              onTap: () {
+                _toggle();
+                onTap();
+              },
+              behavior: HitTestBehavior.opaque,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                        color: const Color(0xFF1A1A1A),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.1)),
+                        boxShadow: [
+                          BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.5),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4))
+                        ]),
+                    child: Text(title,
+                        style: const TextStyle(
+                            color: Colors.white, fontWeight: FontWeight.bold)),
+                  ),
+                  const SizedBox(width: 12),
+                  FloatingActionButton(
+                    heroTag: title,
+                    mini: true,
+                    backgroundColor: const Color(0xFF1A1A1A),
+                    elevation: 4,
+                    onPressed: () {
+                      _toggle();
+                      onTap();
+                    },
+                    child: Icon(icon, color: AppTheme.primaryRed),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

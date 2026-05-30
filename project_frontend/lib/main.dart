@@ -9,6 +9,7 @@ import 'features/client_booking/presentation/providers/booking_provider.dart';
 import 'features/admin_panel/presentation/providers/admin_provider.dart';
 import 'features/admin_panel/presentation/providers/admin_service_provider.dart';
 import 'features/admin_panel/presentation/providers/admin_brand_provider.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -23,8 +24,8 @@ void main() async {
         ChangeNotifierProvider(
             create: (_) => di.sl<ServiceSelectionProvider>()),
         ChangeNotifierProvider(create: (_) => di.sl<AdminServiceProvider>()),
-        ChangeNotifierProvider(create: (_) => BookingProvider()),
-        ChangeNotifierProvider(create: (_) => AdminProvider()),
+        ChangeNotifierProvider(create: (_) => di.sl<BookingProvider>()),
+        ChangeNotifierProvider(create: (_) => di.sl<AdminProvider>()),
         ChangeNotifierProvider(create: (_) => AdminBrandProvider()),
       ],
       child: const MyApp(),
@@ -42,6 +43,14 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.themeData,
       routerConfig: AppRouter.router,
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('pt', 'BR'),
+      ],
     );
   }
 }
