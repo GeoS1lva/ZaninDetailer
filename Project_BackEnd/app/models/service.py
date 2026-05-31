@@ -26,6 +26,7 @@ class Service(Base):
         nullable=False,
         comment="Duração do serviço em minutos. Ex: 120 = 2 horas.",
     )
+    image_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
     def __repr__(self) -> str:
         return (

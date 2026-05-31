@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from fastapi import HTTPException, status
@@ -24,6 +24,8 @@ from app.schemas.appointment import (
 
 TZ = ZoneInfo(settings.calendar_timezone)
 PAUSE_MINUTES = 20
+LUNCH_START = 12
+LUNCH_END = 13
 
 
 class AppointmentService:
@@ -33,23 +35,24 @@ class AppointmentService:
         self._client_repo = ClientRepository(session)
         self._service_repo = ServiceRepository(session)
 
-    async def get_available_slots(
-        self, service_id: int, date_str: str
-    ) -> list[AvailableSlot]:
+    async def get_available_slots(self, service_id: int, date_str: str) -> list[AvailableSlot]:
         service = await self._service_repo.get_by_id(service_id)
         if not service:
             raise HTTPException(status_code=404, detail="Serviço não encontrado.")
 
+        target_date = datetime.strptime(date_str, "%Y-%m-%d")
+        if target_date.weekday() != 5:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Atendimentos apenas aos sábados.",
+            )
+
         slot_duration = timedelta(minutes=service.duration_minutes + PAUSE_MINUTES)
 
-        naive_start = datetime.strptime(date_str, "%Y-%m-%d").replace(
-            hour=settings.business_hour_start, minute=0
-        )
-        naive_end = datetime.strptime(date_str, "%Y-%m-%d").replace(
-            hour=settings.business_hour_end, minute=0
-        )
-        day_start = naive_start.replace(tzinfo=TZ)
-        day_end = naive_end.replace(tzinfo=TZ)
+        day_start = target_date.replace(hour=settings.business_hour_start, minute=0, tzinfo=TZ)
+        day_end = target_date.replace(hour=settings.business_hour_end, minute=0, tzinfo=TZ)
+        lunch_start = target_date.replace(hour=LUNCH_START, minute=0, tzinfo=TZ)
+        lunch_end = target_date.replace(hour=LUNCH_END, minute=0, tzinfo=TZ)
 
         if day_end <= datetime.now(tz=TZ):
             return []
@@ -57,7 +60,7 @@ class AppointmentService:
         busy_google = get_busy_slots(day_start, day_end)
         busy_db = await self._repo.get_conflicting(day_start, day_end)
 
-        busy_intervals: list[tuple[datetime, datetime]] = []
+        busy_intervals: list[tuple[datetime, datetime]] = [(lunch_start, lunch_end)]
 
         for b in busy_google:
             b_start = datetime.fromisoformat(b["start"]).astimezone(TZ)
@@ -75,11 +78,12 @@ class AppointmentService:
             cursor += timedelta(minutes=extra)
         cursor = cursor.replace(second=0, microsecond=0)
 
-        while cursor + slot_duration <= day_end:
-            candidate_end = cursor + slot_duration
+        while cursor < day_end:
+            service_end = cursor + timedelta(minutes=service.duration_minutes)
+            block_end = cursor + slot_duration
 
             conflict = any(
-                busy_start < candidate_end and busy_end > cursor
+                busy_start < block_end and busy_end > cursor
                 for busy_start, busy_end in busy_intervals
             )
 
@@ -87,8 +91,8 @@ class AppointmentService:
                 slots.append(
                     AvailableSlot(
                         start=cursor,
-                        end=cursor + timedelta(minutes=service.duration_minutes),
-                        display=f"{cursor.strftime('%H:%M')} – {(cursor + timedelta(minutes=service.duration_minutes)).strftime('%H:%M')}",
+                        end=service_end,
+                        display=f"{cursor.strftime('%H:%M')} – {service_end.strftime('%H:%M')}",
                     )
                 )
 
@@ -102,10 +106,27 @@ class AppointmentService:
             raise HTTPException(status_code=404, detail="Serviço não encontrado.")
 
         scheduled_start = data.scheduled_start.astimezone(TZ)
-        slot_duration = timedelta(minutes=service.duration_minutes + PAUSE_MINUTES)
-        scheduled_end = scheduled_start + slot_duration
 
-        self._validate_business_hours(scheduled_start, scheduled_end)
+        if scheduled_start.weekday() != 5:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Atendimentos apenas aos sábados.",
+            )
+
+        if scheduled_start.hour < settings.business_hour_start:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Horário de início não pode ser antes das {settings.business_hour_start:02d}h.",
+            )
+
+        if scheduled_start.hour >= settings.business_hour_end:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Horário de início não pode ser a partir das {settings.business_hour_end:02d}h.",
+            )
+
+        slot_duration = timedelta(minutes=service.duration_minutes + PAUSE_MINUTES)
+        scheduled_end = self._calculate_end(scheduled_start, slot_duration)
 
         conflicts = await self._repo.get_conflicting(scheduled_start, scheduled_end)
         if conflicts:
@@ -152,23 +173,36 @@ class AppointmentService:
         await self._repo.save(appointment)
         return await self._repo.get_by_id(appointment.id)
 
-    async def reschedule_appointment(
-        self, appointment_id: int, data: AppointmentReschedule
-    ) -> Appointment:
+    async def reschedule_appointment(self, appointment_id: int, data: AppointmentReschedule) -> Appointment:
         appointment = await self._get_or_404(appointment_id)
         self._validate_token(appointment, data.cancellation_token)
         self._validate_not_cancelled(appointment)
 
         service = appointment.service
         new_start = data.scheduled_start.astimezone(TZ)
+
+        if new_start.weekday() != 5:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Atendimentos apenas aos sábados.",
+            )
+
+        if new_start.hour < settings.business_hour_start:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Horário de início não pode ser antes das {settings.business_hour_start:02d}h.",
+            )
+
+        if new_start.hour >= settings.business_hour_end:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Horário de início não pode ser a partir das {settings.business_hour_end:02d}h.",
+            )
+
         slot_duration = timedelta(minutes=service.duration_minutes + PAUSE_MINUTES)
-        new_end = new_start + slot_duration
+        new_end = self._calculate_end(new_start, slot_duration)
 
-        self._validate_business_hours(new_start, new_end)
-
-        conflicts = await self._repo.get_conflicting(
-            new_start, new_end, exclude_id=appointment_id
-        )
+        conflicts = await self._repo.get_conflicting(new_start, new_end, exclude_id=appointment_id)
         if conflicts:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
@@ -176,7 +210,6 @@ class AppointmentService:
             )
 
         old_start = appointment.scheduled_start
-
         appointment.scheduled_start = new_start
         appointment.scheduled_end = new_end
 
@@ -190,20 +223,14 @@ class AppointmentService:
 
         if appointment.google_event_id:
             try:
-                update_calendar_event(
-                    appointment.google_event_id,
-                    start=new_start,
-                    end=new_end,
-                )
+                update_calendar_event(appointment.google_event_id, start=new_start, end=new_end)
             except Exception as exc:
                 print(f"[WARN] Falha ao atualizar Google Calendar: {exc}")
 
+        await self._repo.save(appointment)
         return await self._repo.get_by_id(appointment.id)
 
-
-    async def cancel_appointment(
-        self, appointment_id: int, data: AppointmentCancel
-    ) -> Appointment:
+    async def cancel_appointment(self, appointment_id: int, data: AppointmentCancel) -> Appointment:
         appointment = await self._get_or_404(appointment_id)
         self._validate_token(appointment, data.cancellation_token)
         self._validate_not_cancelled(appointment)
@@ -226,18 +253,26 @@ class AppointmentService:
             except Exception as exc:
                 print(f"[WARN] Falha ao remover evento do Google Calendar: {exc}")
 
+        await self._repo.save(appointment)
         return await self._repo.get_by_id(appointment.id)
 
     async def get_appointment(self, appointment_id: int) -> Appointment:
         return await self._get_or_404(appointment_id)
-    
+
     async def list_by_date(self, date_str: str) -> list[Appointment]:
-        from zoneinfo import ZoneInfo
-        from datetime import datetime, timedelta
         naive = datetime.strptime(date_str, "%Y-%m-%d")
         day_start = naive.replace(hour=0, minute=0, second=0, tzinfo=TZ)
         day_end = day_start + timedelta(days=1)
         return await self._repo.list_by_date_range(day_start, day_end)
+
+    @staticmethod
+    def _calculate_end(start: datetime, duration: timedelta) -> datetime:
+        lunch_start = start.replace(hour=LUNCH_START, minute=0, second=0, microsecond=0)
+        lunch_end = start.replace(hour=LUNCH_END, minute=0, second=0, microsecond=0)
+        end = start + duration
+        if start < lunch_start and end > lunch_start:
+            end += (lunch_end - lunch_start)
+        return end
 
     async def _get_or_404(self, appointment_id: int) -> Appointment:
         appt = await self._repo.get_by_id(appointment_id)
@@ -259,16 +294,4 @@ class AppointmentService:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail="Este agendamento já está cancelado.",
-            )
-
-    @staticmethod
-    def _validate_business_hours(start: datetime, end: datetime) -> None:
-        if start.hour < settings.business_hour_start or end.hour > settings.business_hour_end:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail=(
-                    f"Horário fora do expediente. "
-                    f"Atendemos das {settings.business_hour_start:02d}h "
-                    f"às {settings.business_hour_end:02d}h."
-                ),
             )

@@ -1,6 +1,7 @@
+from decimal import Decimal
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, File, Form, Query, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies.auth import AuthenticatedUser
@@ -44,33 +45,34 @@ async def get_service(service_id: int, svc: ServiceDep) -> ServiceResponse:
     return ServiceResponse.from_orm_with_display(service)
 
 
-@router.post(
-    "/",
-    response_model=ServiceResponse,
-    status_code=status.HTTP_201_CREATED,
-    summary="Criar serviço [admin]",
-)
+@router.post("/", response_model=ServiceResponse, status_code=201, summary="Criar serviço [admin]")
 async def create_service(
-    data: ServiceCreate,
     svc: ServiceDep,
     _: AuthenticatedUser,
+    name: Annotated[str, Form()],
+    price: Annotated[Decimal, Form()],
+    duration_minutes: Annotated[int, Form()],
+    description: Annotated[str | None, Form()] = None,
+    image: Annotated[UploadFile | None, File()] = None,
 ) -> ServiceResponse:
-    service = await svc.create_service(data)
+    data = ServiceCreate(name=name, price=price, duration_minutes=duration_minutes, description=description)
+    service = await svc.create_service(data, image)
     return ServiceResponse.from_orm_with_display(service)
 
 
-@router.patch(
-    "/{service_id}",
-    response_model=ServiceResponse,
-    summary="Atualizar serviço [admin]",
-)
+@router.patch("/{service_id}", response_model=ServiceResponse, summary="Atualizar serviço [admin]")
 async def update_service(
     service_id: int,
-    data: ServiceUpdate,
     svc: ServiceDep,
     _: AuthenticatedUser,
+    name: Annotated[str | None, Form()] = None,
+    price: Annotated[Decimal | None, Form()] = None,
+    duration_minutes: Annotated[int | None, Form()] = None,
+    description: Annotated[str | None, Form()] = None,
+    image: Annotated[UploadFile | None, File()] = None,
 ) -> ServiceResponse:
-    service = await svc.update_service(service_id, data)
+    data = ServiceUpdate(name=name, price=price, duration_minutes=duration_minutes, description=description)
+    service = await svc.update_service(service_id, data, image)
     return ServiceResponse.from_orm_with_display(service)
 
 

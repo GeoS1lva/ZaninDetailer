@@ -40,22 +40,28 @@ class ServiceRepository:
         items = list(result.scalars().all())
         return items, total
 
-    async def create(self, data: ServiceCreate) -> Service:
+    async def create(self, data: ServiceCreate, image_url: str | None = None) -> Service:
         service = Service(
             name=data.name,
             description=data.description,
             price=data.price,
             duration_minutes=data.duration_minutes,
+            image_url=image_url
         )
+
         self._session.add(service)
         await self._session.flush()
         await self._session.refresh(service)
         return service
 
-    async def update(self, service: Service, data: ServiceUpdate) -> Service:
+    async def update(self, service: Service, data: ServiceUpdate, image_url: str | None = None) -> Service:
         update_data = data.model_dump(exclude_unset=True)
         for field, value in update_data.items():
             setattr(service, field, value)
+
+        if image_url is not None:
+            service.image_url = image_url
+            
         await self._session.flush()
         await self._session.refresh(service)
         return service

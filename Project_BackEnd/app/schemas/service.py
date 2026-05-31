@@ -25,6 +25,7 @@ class ServiceBase(BaseModel):
         examples=[120],
         description="Duração em minutos. Ex: 120 = 2h, 90 = 1h30.",
     )
+    image_url: str | None = None
 
     @field_validator("name")
     @classmethod
@@ -87,6 +88,7 @@ class ServiceResponse(ServiceBase):
             price=service.price,
             duration_minutes=service.duration_minutes,
             duration_display=duration_display,
+            image_url=service.image_url
         )
 
 
