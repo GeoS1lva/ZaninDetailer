@@ -1,50 +1,51 @@
 import 'package:flutter/material.dart';
-
-class ServiceModel {
-  final String id;
-  final String title;
-  final String duration;
-  final String price;
-  final String imageUrl;
-
-  ServiceModel({required this.id, required this.title, required this.duration, required this.price, required this.imageUrl});
-}
-
-class WorkModel {
-  final String id;
-  final String imageUrl;
-  WorkModel({required this.id, required this.imageUrl});
-}
+import 'package:fpdart/fpdart.dart';
+import '../../data/models/service_model.dart';
+import '../../domain/repositories/i_booking_repository.dart';
+import '../../../../core/error/failures.dart';
 
 class ServiceSelectionProvider extends ChangeNotifier {
-  bool isLoading = false;
-  List<ServiceModel> services = [];
-  List<String> brandLogos = []; 
-  List<WorkModel> lastWorks = [];
+  final IBookingRepository _repository;
+
+  ServiceSelectionProvider({required IBookingRepository repository})
+      : _repository = repository;
+
+  bool _isLoading = false;
+  bool get isLoading => _isLoading;
+
+  List<ServiceModel> _services = [];
+  List<ServiceModel> get services => _services;
+
+  List<String> _lastWorks = [];
+  List<String> get lastWorks => _lastWorks;
+
+  final List<String> brandLogos = [
+    'assets/images/logo_vonixx.jpg',
+  ];
 
   Future<void> fetchApiData() async {
-    isLoading = true;
+    _isLoading = true;
     notifyListeners();
 
-    await Future.delayed(const Duration(milliseconds: 400));
+    final results = await Future.wait([
+      _repository.getServices(),
+      _repository.getLastWorks(),
+    ]);
 
-    services = [
-      ServiceModel(id: '1', title: 'Lavagem Essencial', duration: '2h', price: '80,00', imageUrl: 'assets/images/essencial2.jpg'),
-      ServiceModel(id: '2', title: 'Lavagem Técnica', duration: '3h', price: '100 - R\$ 110', imageUrl: 'assets/images/welcome_car.jpg'),
-    ];
+    final servicesResult = results[0] as Either<Failure, List<ServiceModel>>;
+    final worksResult = results[1] as Either<Failure, List<String>>;
 
-    brandLogos = [
-      'assets/images/logo_vonixx.jpg', 
-    ];
+    servicesResult.fold(
+      (failure) => debugPrint("Erro ao carregar serviços: ${failure.message}"),
+      (servicesData) => _services = servicesData,
+    );
 
-    lastWorks = [
-      WorkModel(id: 'w1', imageUrl: 'assets/images/gol.jpg'),
-      WorkModel(id: 'w2', imageUrl: 'assets/images/fit.jpg'),
-      WorkModel(id: 'w3', imageUrl: 'assets/images/palio.jpg'),
-      WorkModel(id: 'w4', imageUrl: 'assets/images/argo.jpg'),
-    ];
+    worksResult.fold(
+      (failure) => debugPrint("Erro ao carregar trabalhos: ${failure.message}"),
+      (worksData) => _lastWorks = worksData,
+    );
 
-    isLoading = false;
+    _isLoading = false;
     notifyListeners();
   }
 }
