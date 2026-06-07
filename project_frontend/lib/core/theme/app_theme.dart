@@ -10,7 +10,37 @@ class AppTheme {
   static const Color successGreen = Color(0xFF22C55E);
   static const Color warningYellow = Color(0xFFFFC107);
 
-  static ThemeData get darkTheme {
+  static TextTheme get _textTheme {
+    return TextTheme(
+      headlineLarge: GoogleFonts.montserrat(
+        fontSize: 24,
+        fontWeight: FontWeight.bold,
+        color: textPrimary,
+      ),
+      titleLarge: GoogleFonts.montserrat(
+        fontSize: 20,
+        fontWeight: FontWeight.bold,
+        color: textPrimary,
+      ),
+      labelLarge: GoogleFonts.montserrat(
+        fontSize: 16,
+        fontWeight: FontWeight.bold,
+        color: textPrimary,
+      ),
+      bodyLarge: GoogleFonts.inter(
+        fontSize: 16,
+        fontWeight: FontWeight.normal,
+        color: textPrimary,
+      ),
+      bodyMedium: GoogleFonts.inter(
+        fontSize: 14,
+        fontWeight: FontWeight.normal,
+        color: textSecondary,
+      ),
+    );
+  }
+
+  static ThemeData get themeData {
     return ThemeData(
       brightness: Brightness.dark,
       scaffoldBackgroundColor: background,
@@ -19,17 +49,7 @@ class AppTheme {
         primary: primaryRed,
         surface: surface,
       ),
-      textTheme: GoogleFonts.urbanistTextTheme(ThemeData.dark().textTheme)
-          .copyWith(
-            displayLarge: GoogleFonts.montserrat(
-              color: textPrimary,
-              fontWeight: FontWeight.bold,
-            ),
-            titleLarge: GoogleFonts.montserrat(
-              color: textPrimary,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
+      textTheme: _textTheme,
     );
   }
 }
