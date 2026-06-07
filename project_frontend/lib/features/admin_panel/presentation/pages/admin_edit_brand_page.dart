@@ -7,33 +7,42 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../di/injection_container.dart' as di;
+import '../../data/models/admin_brand_model.dart';
 import '../providers/admin_brand_provider.dart';
 import '../widgets/admin_custom_input.dart';
 import '../widgets/dashed_rect_painter.dart';
 
-class AdminNewBrandPage extends StatelessWidget {
-  const AdminNewBrandPage({super.key});
+class AdminEditBrandPage extends StatelessWidget {
+  final AdminBrandModel marca;
+  const AdminEditBrandPage({super.key, required this.marca});
 
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
       create: (_) => di.sl<AdminBrandProvider>(),
-      child: const _AdminNewBrandView(),
+      child: _AdminEditBrandView(marca: marca),
     );
   }
 }
 
-class _AdminNewBrandView extends StatefulWidget {
-  const _AdminNewBrandView();
+class _AdminEditBrandView extends StatefulWidget {
+  final AdminBrandModel marca;
+  const _AdminEditBrandView({required this.marca});
 
   @override
-  State<_AdminNewBrandView> createState() => _AdminNewBrandViewState();
+  State<_AdminEditBrandView> createState() => _AdminEditBrandViewState();
 }
 
-class _AdminNewBrandViewState extends State<_AdminNewBrandView> {
+class _AdminEditBrandViewState extends State<_AdminEditBrandView> {
   XFile? _image;
   final ImagePicker _picker = ImagePicker();
-  final TextEditingController _nomeController = TextEditingController();
+  late TextEditingController _nomeController;
+
+  @override
+  void initState() {
+    super.initState();
+    _nomeController = TextEditingController(text: widget.marca.name);
+  }
 
   @override
   void dispose() {
@@ -51,20 +60,19 @@ class _AdminNewBrandViewState extends State<_AdminNewBrandView> {
     }
   }
 
-  void _removeImage() => setState(() => _image = null);
-
   Future<void> _handleSave() async {
     FocusScope.of(context).unfocus();
 
     if (_nomeController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('O nome da marca é obrigatório!'),
+          content: Text('O nome é obrigatório!'),
           backgroundColor: Colors.redAccent));
       return;
     }
 
     final provider = context.read<AdminBrandProvider>();
-    final sucesso = await provider.salvarNovaMarca(
+    final sucesso = await provider.atualizarMarca(
+      id: widget.marca.id,
       nome: _nomeController.text.trim(),
       imagem: _image,
     );
@@ -72,12 +80,11 @@ class _AdminNewBrandViewState extends State<_AdminNewBrandView> {
     if (mounted) {
       if (sucesso) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Marca criada com sucesso!'),
-            backgroundColor: Colors.green));
+            content: Text('Marca atualizada!'), backgroundColor: Colors.green));
         context.pop();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(provider.errorMessage ?? 'Erro ao salvar marca'),
+            content: Text(provider.errorMessage ?? 'Erro ao atualizar'),
             backgroundColor: Colors.redAccent));
       }
     }
@@ -122,7 +129,7 @@ class _AdminNewBrandViewState extends State<_AdminNewBrandView> {
                           child: const Icon(Icons.arrow_back_ios_new,
                               color: AppTheme.primaryRed, size: 18))),
                   const SizedBox(height: 32),
-                  Text('Nova Marca', style: textTheme.headlineLarge),
+                  Text('Editar Marca', style: textTheme.headlineLarge),
                   const SizedBox(height: 32),
                   Expanded(
                     child: SingleChildScrollView(
@@ -133,7 +140,7 @@ class _AdminNewBrandViewState extends State<_AdminNewBrandView> {
                               hint: 'Nome da Marca',
                               controller: _nomeController),
                           const SizedBox(height: 32),
-                          _image == null
+                          _image == null && widget.marca.imageUrl == null
                               ? _buildDashedUploadArea(textTheme)
                               : _buildImagePreview(),
                           const SizedBox(height: 40),
@@ -158,7 +165,8 @@ class _AdminNewBrandViewState extends State<_AdminNewBrandView> {
                               height: 24,
                               child: CircularProgressIndicator(
                                   color: Colors.white, strokeWidth: 3))
-                          : Text('Salvar Marca', style: textTheme.labelLarge),
+                          : Text('Salvar Alterações',
+                              style: textTheme.labelLarge),
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -190,7 +198,7 @@ class _AdminNewBrandViewState extends State<_AdminNewBrandView> {
                     Icon(Icons.camera_alt_outlined,
                         color: Colors.white.withValues(alpha: 0.4), size: 60),
                     const SizedBox(height: 16),
-                    Text('Faça upload da logo da marca',
+                    Text('Atualizar logo da marca',
                         textAlign: TextAlign.center,
                         style: textTheme.bodyMedium)
                   ]))),
@@ -209,22 +217,24 @@ class _AdminNewBrandViewState extends State<_AdminNewBrandView> {
                   color: AppTheme.primaryRed.withValues(alpha: 0.5), width: 2)),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(10),
-            child: kIsWeb
-                ? Image.network(_image!.path, fit: BoxFit.cover)
-                : Image.file(File(_image!.path), fit: BoxFit.cover),
+            child: _image == null
+                ? Image.network(widget.marca.imageUrl!, fit: BoxFit.cover)
+                : (kIsWeb
+                    ? Image.network(_image!.path, fit: BoxFit.cover)
+                    : Image.file(File(_image!.path), fit: BoxFit.cover)),
           ),
         ),
         Positioned(
           top: 10,
           right: 10,
           child: GestureDetector(
-            onTap: _removeImage,
+            onTap: _pickImage,
             child: Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                     color: Colors.black.withValues(alpha: 0.7),
                     shape: BoxShape.circle),
-                child: const Icon(Icons.close, color: Colors.white, size: 20)),
+                child: const Icon(Icons.edit, color: Colors.white, size: 20)),
           ),
         ),
       ],

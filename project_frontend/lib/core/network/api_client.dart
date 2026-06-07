@@ -1,35 +1,76 @@
 import 'package:dio/dio.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../constants/app_constants.dart';
 
 class ApiClient {
-  late final Dio _dio;
+  late final Dio dio;
+  final FlutterSecureStorage _storage;
 
-  ApiClient() {
-    _dio = Dio(BaseOptions(
-      baseUrl: 'http://localhost:8000/api',
-      connectTimeout: const Duration(seconds: 10),
-      receiveTimeout: const Duration(seconds: 10),
+  static const String baseUrl =
+      'https://lashaun-unbumped-squarely.ngrok-free.dev/api/v1/';
+
+  ApiClient({required FlutterSecureStorage storage}) : _storage = storage {
+    dio = Dio(BaseOptions(
+      baseUrl: baseUrl,
+      connectTimeout: const Duration(seconds: AppConstants.apiTimeoutSeconds),
+      receiveTimeout: const Duration(seconds: AppConstants.apiTimeoutSeconds),
+      contentType: 'application/json',
       headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
+        'ngrok-skip-browser-warning': 'true',
       },
     ));
-    _dio.interceptors.add(InterceptorsWrapper(
-      onRequest: (options, handler) {
-        print("🌐 [API Request] ${options.method} ${options.path}");
-        return handler.next(options);
-      },
-      onResponse: (response, handler) {
-        print("✅ [API Response] ${response.statusCode}");
-        return handler.next(response);
-      },
-      onError: (DioException e, handler) {
-        print("❌ [API Error] ${e.message}");
-        return handler.next(e);
-      },
-    ));
-  }
 
-  Future<Response> get(String path) async => await _dio.get(path);
-  Future<Response> post(String path, {dynamic data}) async =>
-      await _dio.post(path, data: data);
+    dio.interceptors.add(LogInterceptor(
+      request: true,
+      requestBody: true,
+      responseBody: true,
+      error: true,
+    ));
+
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) async {
+          final token = await _storage.read(key: StoreKeys.acessToken);
+          if (token != null) {
+            options.headers['Authorization'] = 'Bearer $token';
+          }
+          return handler.next(options);
+        },
+        onError: (DioException e, handler) async {
+          if (e.response?.statusCode == 401) {
+            if (e.requestOptions.path.contains('/auth/login')) {
+              return handler.next(e);
+            }
+
+            final refreshToken =
+                await _storage.read(key: StoreKeys.refreshToken);
+            if (refreshToken != null) {
+              try {
+                final refreshResponse = await dio.post(
+                  '/auth/refresh',
+                  data: {'refresh_token': refreshToken},
+                );
+
+                final newAccessToken = refreshResponse.data['access_toke'];
+                final newRefreshToken = refreshResponse.data['refresh_token'];
+
+                await _storage.write(
+                    key: StoreKeys.acessToken, value: newAccessToken);
+                await _storage.write(
+                    key: StoreKeys.refreshToken, value: newRefreshToken);
+
+                e.requestOptions.headers['Authorization'] =
+                    'Bearer $newAccessToken';
+                final retryResponse = await dio.fetch(e.requestOptions);
+                return handler.resolve(retryResponse);
+              } catch (refreshError) {
+                await _storage.deleteAll();
+              }
+            }
+          }
+          return handler.next(e);
+        },
+      ),
+    );
+  }
 }

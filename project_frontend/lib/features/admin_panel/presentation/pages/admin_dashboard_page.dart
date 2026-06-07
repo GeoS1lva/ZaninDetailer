@@ -23,10 +23,18 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     });
   }
 
+  String _getFirstName(String? fullName) {
+    if (fullName == null || fullName.trim().isEmpty) return 'Admin';
+    return fullName.trim().split(' ').first;
+  }
+
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<AdminProvider>();
     final textTheme = Theme.of(context).textTheme;
+
+    final firstName = _getFirstName(
+        provider.currentUser?.fullName ?? provider.currentUser?.email);
 
     return Scaffold(
       backgroundColor: AppTheme.background,
@@ -57,17 +65,30 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
                       IconButton(
+                        icon: const Icon(Icons.people_alt_outlined,
+                            color: AppTheme.primaryRed, size: 28),
+                        onPressed: () => context.push(AppRouter.adminUsers),
+                      ),
+                      const SizedBox(width: 4),
+                      IconButton(
                         icon: const Icon(Icons.exit_to_app,
                             color: AppTheme.primaryRed, size: 28),
-                        onPressed: () => context.go(AppRouter.home),
+                        onPressed: () {
+                          context.go(AppRouter.home);
+                        },
                       ),
                     ],
                   ),
                   Text('Painel de Controle', style: textTheme.headlineLarge),
                   const SizedBox(height: 4),
-                  Text('Olá, Eduardo',
-                      style: textTheme.bodyLarge?.copyWith(
-                          color: Colors.white.withValues(alpha: 0.7))),
+                  Text(
+                    provider.isLoading && provider.currentUser == null
+                        ? 'Carregando perfil...'
+                        : 'Olá, $firstName',
+                    style: textTheme.bodyLarge?.copyWith(
+                      color: Colors.white.withValues(alpha: 0.7),
+                    ),
+                  ),
                   const SizedBox(height: 32),
                   Row(
                     children: [
@@ -175,24 +196,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
           Text('Placa: ${agenda.placa} | Cliente: ${agenda.cliente}',
               style: textTheme.bodyMedium),
           const SizedBox(height: 20),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(agenda.servico,
-                  style: textTheme.titleLarge?.copyWith(fontSize: 17)),
-              GestureDetector(
-                onTap: () =>
-                    context.read<AdminProvider>().concluirServico(agenda.id),
-                child: Container(
-                  width: 40,
-                  height: 40,
-                  decoration: const BoxDecoration(
-                      color: Color(0xFF4CAF50), shape: BoxShape.circle),
-                  child: const Icon(Icons.check, color: Colors.black, size: 24),
-                ),
-              ),
-            ],
-          ),
+          Text(agenda.servico,
+              style: textTheme.titleLarge?.copyWith(fontSize: 17)),
         ],
       ),
     );
@@ -251,15 +256,15 @@ class _CustomSpeedDialState extends State<CustomSpeedDial>
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
         _buildAnimatedButton(
-          title: "Nova Marca",
+          title: "Marcas",
           icon: Icons.branding_watermark,
-          onTap: () => context.go(AppRouter.adminNovaMarca),
+          onTap: () => context.push('/admin/marcas'),
           index: 2,
         ),
         _buildAnimatedButton(
-          title: "Novo Serviço",
-          icon: Icons.car_repair,
-          onTap: () => context.go(AppRouter.adminNovoServico),
+          title: "Catálogo",
+          icon: Icons.list_alt,
+          onTap: () => context.push(AppRouter.adminServicosList),
           index: 1,
         ),
         FloatingActionButton(

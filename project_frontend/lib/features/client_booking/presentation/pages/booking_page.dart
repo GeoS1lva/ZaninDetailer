@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -8,6 +7,7 @@ import '../../../../core/router/app_router.dart';
 import '../providers/booking_provider.dart';
 import '../../../../features/client_booking/data/models/service_model.dart';
 import '../widgets/booking_confirmation_step.dart';
+import '../../../../core/utils/string_utils.dart';
 
 class BookingPage extends StatefulWidget {
   final ServiceModel service;
@@ -32,11 +32,6 @@ class _BookingPageState extends State<BookingPage> {
   void dispose() {
     _pageController.dispose();
     super.dispose();
-  }
-
-  String _capitalize(String text) {
-    if (text.isEmpty) return text;
-    return text[0].toUpperCase() + text.substring(1).toLowerCase();
   }
 
   List<DateTime> _getUpcomingSaturdays() {
@@ -72,7 +67,13 @@ class _BookingPageState extends State<BookingPage> {
                 onPrimary: Colors.white,
                 surface: AppTheme.surface,
                 onSurface: Colors.white),
-            dialogBackgroundColor: AppTheme.background,
+            dialogTheme: const DialogThemeData(
+              backgroundColor: AppTheme.background,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.all(Radius.circular(16)),
+              ),
+            ),
           ),
           child: child!,
         );
@@ -279,8 +280,8 @@ class _BookingPageState extends State<BookingPage> {
         final date = days[index];
         final isSelected = DateUtils.isSameDay(date, provider.selectedDate);
         final dayNumber = DateFormat('d').format(date);
-        final dayOfWeek = _capitalize(
-            DateFormat('E', 'pt_BR').format(date).replaceAll('.', ''));
+        final weekday =
+            StringUtils.capitalize(DateFormat('E', 'pt_BR').format(date));
 
         return GestureDetector(
           onTap: () => provider.selectDate(date),
@@ -314,7 +315,7 @@ class _BookingPageState extends State<BookingPage> {
                             isSelected ? FontWeight.bold : FontWeight.w600,
                         color: Colors.white)),
                 const SizedBox(height: 6),
-                Text(dayOfWeek,
+                Text(weekday,
                     style: textTheme.bodyLarge?.copyWith(
                         fontSize: 18,
                         color: isSelected ? Colors.white : Colors.grey[400])),
