@@ -10,7 +10,7 @@ class Client(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     full_name: Mapped[str] = mapped_column(String(150), nullable=False)
     phone: Mapped[str] = mapped_column(String(20), nullable=False)
-    license_plate: Mapped[str] = mapped_column(String(10), nullable=False, index=True)
+    license_plate: Mapped[str] = mapped_column(String(10), nullable=False, unique=True)
     vehicle_brand_model: Mapped[str | None] = mapped_column(String(100), nullable=True)
 
     appointments: Mapped[list["Appointment"]] = relationship(

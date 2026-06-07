@@ -26,6 +26,30 @@ class ClientCreate(BaseModel):
         return digits
 
 
+class ClientUpdate(BaseModel):
+    full_name: str | None = Field(default=None, min_length=3, max_length=150)
+    phone: str | None = Field(default=None, min_length=10, max_length=20)
+    license_plate: str | None = Field(default=None, min_length=7, max_length=10)
+    vehicle_brand_model: str | None = Field(default=None, max_length=100)
+
+    @field_validator("license_plate")
+    @classmethod
+    def normalize_plate(cls, v: str | None) -> str | None:
+        if v is not None:
+            return v.strip().upper().replace("-", "").replace(" ", "")
+        return v
+
+    @field_validator("phone")
+    @classmethod
+    def normalize_phone(cls, v: str | None) -> str | None:
+        if v is not None:
+            digits = "".join(c for c in v if c.isdigit())
+            if len(digits) < 10:
+                raise ValueError("Telefone deve ter pelo menos 10 dígitos com DDD.")
+            return digits
+        return v
+
+
 class ClientResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -54,17 +78,11 @@ class AppointmentCreate(BaseModel):
 
 
 class AppointmentReschedule(BaseModel):
-    """Payload para reagendar — apenas data/hora."""
+    """Payload para reagendar — apenas o novo horário."""
     scheduled_start: datetime
-    cancellation_token: str = Field(
-        description="Token recebido na confirmação do agendamento."
-    )
 
 
 class AppointmentCancel(BaseModel):
-    cancellation_token: str = Field(
-        description="Token recebido na confirmação do agendamento."
-    )
     reason: str | None = Field(default=None, max_length=500)
 
 
@@ -107,7 +125,3 @@ class AppointmentResponse(BaseModel):
         return v.astimezone(BR_TZ).isoformat()
 
 
-class AppointmentCreatedResponse(AppointmentResponse):
-    cancellation_token: str = Field(
-        description="Guarde este token. Ele é necessário para cancelar ou reagendar."
-    )

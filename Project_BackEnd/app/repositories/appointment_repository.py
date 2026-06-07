@@ -25,23 +25,12 @@ class AppointmentRepository:
         )
         return result.scalar_one_or_none()
 
-    async def get_by_token(self, token: str) -> Appointment | None:
-        result = await self._session.execute(
-            select(Appointment)
-            .where(Appointment.cancellation_token == token)
-            .options(
-                selectinload(Appointment.client),
-                selectinload(Appointment.service),
-                selectinload(Appointment.history),
-            )
-        )
-        return result.scalar_one_or_none()
-
     async def get_conflicting(
         self,
         start: datetime,
         end: datetime,
         exclude_id: int | None = None,
+        for_update: bool = False,
     ) -> list[Appointment]:
         conditions = [
             Appointment.status.notin_([AppointmentStatus.CANCELLED]),
@@ -51,9 +40,11 @@ class AppointmentRepository:
         if exclude_id:
             conditions.append(Appointment.id != exclude_id)
 
-        result = await self._session.execute(
-            select(Appointment).where(and_(*conditions))
-        )
+        query = select(Appointment).where(and_(*conditions))
+        if for_update:
+            query = query.with_for_update()
+
+        result = await self._session.execute(query)
         return list(result.scalars().all())
 
     async def create(

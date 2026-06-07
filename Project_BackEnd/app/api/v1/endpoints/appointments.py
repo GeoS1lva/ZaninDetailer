@@ -8,10 +8,10 @@ from app.infra.database import get_db
 from app.schemas.appointment import (
     AppointmentCancel,
     AppointmentCreate,
-    AppointmentCreatedResponse,
     AppointmentReschedule,
     AppointmentResponse,
     AvailableSlotsResponse,
+    ClientUpdate,
 )
 from app.services.appointment_service import AppointmentService
 
@@ -42,18 +42,11 @@ async def available_slots(
     service_id: Annotated[int, Query(gt=0)],
     date: Annotated[str, Query(pattern=r"^\d{4}-\d{2}-\d{2}$", examples=["2025-06-10"])],
 ) -> AvailableSlotsResponse:
-    from app.repositories.service_repository import ServiceRepository
-    from app.infra.database import AsyncSessionLocal
-
-    async with AsyncSessionLocal() as s:
-        repo = ServiceRepository(s)
-        service = await repo.get_by_id(service_id)
-
-    slots = await svc.get_available_slots(service_id, date)
+    slots, duration_minutes = await svc.get_available_slots(service_id, date)
     return AvailableSlotsResponse(
         date=date,
         service_id=service_id,
-        duration_minutes=service.duration_minutes if service else 0,
+        duration_minutes=duration_minutes,
         slots=slots,
     )
 
@@ -61,40 +54,36 @@ async def available_slots(
 @router.get(
     "/{appointment_id}",
     response_model=AppointmentResponse,
-    summary="Consultar agendamento",
+    summary="Consultar agendamento [admin]",
 )
-async def get_appointment(appointment_id: int, svc: Svc) -> AppointmentResponse:
+async def get_appointment(
+    appointment_id: int, svc: Svc, _: AuthenticatedUser
+) -> AppointmentResponse:
     appt = await svc.get_appointment(appointment_id)
     return AppointmentResponse.model_validate(appt)
 
 
 @router.post(
     "/",
-    response_model=AppointmentCreatedResponse,
+    response_model=AppointmentResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Criar agendamento",
-    description=(
-        "Cria um novo agendamento. "
-        "Retorna o `cancellation_token` — guarde-o, pois é necessário para cancelar ou reagendar."
-    ),
 )
 async def create_appointment(
     data: AppointmentCreate, svc: Svc
-) -> AppointmentCreatedResponse:
+) -> AppointmentResponse:
     appt = await svc.create_appointment(data)
-    response = AppointmentCreatedResponse.model_validate(appt)
-    response.cancellation_token = appt.cancellation_token
-    return response
+    return AppointmentResponse.model_validate(appt)
 
 
 @router.patch(
     "/{appointment_id}/reschedule",
     response_model=AppointmentResponse,
-    summary="Reagendar atendimento",
-    description="Altera data e horário do agendamento. Requer o cancellation_token.",
+    summary="Reagendar atendimento [admin]",
+    description="Altera data e horário do agendamento. Requer autenticação de administrador.",
 )
 async def reschedule_appointment(
-    appointment_id: int, data: AppointmentReschedule, svc: Svc
+    appointment_id: int, data: AppointmentReschedule, svc: Svc, _: AuthenticatedUser
 ) -> AppointmentResponse:
     appt = await svc.reschedule_appointment(appointment_id, data)
     return AppointmentResponse.model_validate(appt)
@@ -103,16 +92,26 @@ async def reschedule_appointment(
 @router.post(
     "/{appointment_id}/cancel",
     response_model=AppointmentResponse,
-    summary="Cancelar agendamento",
-    description=(
-        "Cancela o agendamento e libera o horário no Google Calendar. "
-        "Requer o cancellation_token recebido na criação."
-    ),
+    summary="Cancelar agendamento [admin]",
+    description="Cancela o agendamento e libera o horário no Google Calendar. Requer autenticação de administrador.",
 )
 async def cancel_appointment(
-    appointment_id: int, data: AppointmentCancel, svc: Svc
+    appointment_id: int, data: AppointmentCancel, svc: Svc, _: AuthenticatedUser
 ) -> AppointmentResponse:
     appt = await svc.cancel_appointment(appointment_id, data)
+    return AppointmentResponse.model_validate(appt)
+
+
+@router.patch(
+    "/{appointment_id}/client",
+    response_model=AppointmentResponse,
+    summary="Atualizar dados do cliente [admin]",
+    description="Atualiza os dados do cliente vinculado ao agendamento. Requer autenticação de administrador.",
+)
+async def update_appointment_client(
+    appointment_id: int, data: ClientUpdate, svc: Svc, _: AuthenticatedUser
+) -> AppointmentResponse:
+    appt = await svc.update_appointment_client(appointment_id, data)
     return AppointmentResponse.model_validate(appt)
 
 @router.get(

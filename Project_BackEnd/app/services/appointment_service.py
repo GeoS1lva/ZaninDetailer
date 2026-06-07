@@ -20,6 +20,7 @@ from app.schemas.appointment import (
     AppointmentCreate,
     AppointmentReschedule,
     AvailableSlot,
+    ClientUpdate,
 )
 
 TZ = ZoneInfo(settings.calendar_timezone)
@@ -35,7 +36,7 @@ class AppointmentService:
         self._client_repo = ClientRepository(session)
         self._service_repo = ServiceRepository(session)
 
-    async def get_available_slots(self, service_id: int, date_str: str) -> list[AvailableSlot]:
+    async def get_available_slots(self, service_id: int, date_str: str) -> tuple[list[AvailableSlot], int]:
         service = await self._service_repo.get_by_id(service_id)
         if not service:
             raise HTTPException(status_code=404, detail="Serviço não encontrado.")
@@ -55,7 +56,7 @@ class AppointmentService:
         lunch_end = target_date.replace(hour=LUNCH_END, minute=0, tzinfo=TZ)
 
         if day_end <= datetime.now(tz=TZ):
-            return []
+            return [], service.duration_minutes
 
         busy_google = get_busy_slots(day_start, day_end)
         busy_db = await self._repo.get_conflicting(day_start, day_end)
@@ -98,7 +99,7 @@ class AppointmentService:
 
             cursor += timedelta(minutes=30)
 
-        return slots
+        return slots, service.duration_minutes
 
     async def create_appointment(self, data: AppointmentCreate) -> Appointment:
         service = await self._service_repo.get_by_id(data.service_id)
@@ -106,6 +107,12 @@ class AppointmentService:
             raise HTTPException(status_code=404, detail="Serviço não encontrado.")
 
         scheduled_start = data.scheduled_start.astimezone(TZ)
+
+        if scheduled_start <= datetime.now(tz=TZ):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Não é possível agendar para uma data/hora no passado.",
+            )
 
         if scheduled_start.weekday() != 5:
             raise HTTPException(
@@ -128,7 +135,7 @@ class AppointmentService:
         slot_duration = timedelta(minutes=service.duration_minutes + PAUSE_MINUTES)
         scheduled_end = self._calculate_end(scheduled_start, slot_duration)
 
-        conflicts = await self._repo.get_conflicting(scheduled_start, scheduled_end)
+        conflicts = await self._repo.get_conflicting(scheduled_start, scheduled_end, for_update=True)
         if conflicts:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
@@ -175,11 +182,16 @@ class AppointmentService:
 
     async def reschedule_appointment(self, appointment_id: int, data: AppointmentReschedule) -> Appointment:
         appointment = await self._get_or_404(appointment_id)
-        self._validate_token(appointment, data.cancellation_token)
         self._validate_not_cancelled(appointment)
 
         service = appointment.service
         new_start = data.scheduled_start.astimezone(TZ)
+
+        if new_start <= datetime.now(tz=TZ):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Não é possível reagendar para uma data/hora no passado.",
+            )
 
         if new_start.weekday() != 5:
             raise HTTPException(
@@ -217,8 +229,8 @@ class AppointmentService:
             appointment,
             previous_start=old_start,
             new_start=new_start,
-            changed_by="client",
-            reason="Reagendamento solicitado pelo cliente.",
+            changed_by="admin",
+            reason="Reagendamento realizado pelo administrador.",
         )
 
         if appointment.google_event_id:
@@ -232,7 +244,6 @@ class AppointmentService:
 
     async def cancel_appointment(self, appointment_id: int, data: AppointmentCancel) -> Appointment:
         appointment = await self._get_or_404(appointment_id)
-        self._validate_token(appointment, data.cancellation_token)
         self._validate_not_cancelled(appointment)
 
         old_status = appointment.status
@@ -242,8 +253,8 @@ class AppointmentService:
             appointment,
             previous_status=old_status,
             new_status=AppointmentStatus.CANCELLED,
-            reason=data.reason or "Cancelado pelo cliente.",
-            changed_by="client",
+            reason=data.reason or "Cancelado pelo administrador.",
+            changed_by="admin",
         )
 
         if appointment.google_event_id:
@@ -274,19 +285,26 @@ class AppointmentService:
             end += (lunch_end - lunch_start)
         return end
 
+    async def update_appointment_client(self, appointment_id: int, data: ClientUpdate) -> Appointment:
+        appointment = await self._get_or_404(appointment_id)
+        client = appointment.client
+
+        if data.license_plate and data.license_plate != client.license_plate:
+            existing = await self._client_repo.get_by_plate(data.license_plate)
+            if existing and existing.id != client.id:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=f"Já existe um cliente cadastrado com a placa '{data.license_plate}'.",
+                )
+
+        await self._client_repo.update(client, data)
+        return await self._repo.get_by_id(appointment_id)
+
     async def _get_or_404(self, appointment_id: int) -> Appointment:
         appt = await self._repo.get_by_id(appointment_id)
         if not appt:
             raise HTTPException(status_code=404, detail="Agendamento não encontrado.")
         return appt
-
-    @staticmethod
-    def _validate_token(appointment: Appointment, token: str) -> None:
-        if appointment.cancellation_token != token:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Token inválido. Você não tem permissão para modificar este agendamento.",
-            )
 
     @staticmethod
     def _validate_not_cancelled(appointment: Appointment) -> None:
