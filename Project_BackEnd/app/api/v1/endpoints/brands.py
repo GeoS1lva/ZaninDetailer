@@ -20,10 +20,9 @@ def get_svc(session: DbSession) -> BrandService:
 Svc = Annotated[BrandService, Depends(get_svc)]
 
 
-@router.get("/", response_model=BrandListResponse, summary="Listar marcas [admin]")
+@router.get("/", response_model=BrandListResponse, summary="Listar marcas")
 async def list_brands(
     svc: Svc,
-    _: AuthenticatedUser,
     offset: Annotated[int, Query(ge=0)] = 0,
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
 ) -> BrandListResponse:
