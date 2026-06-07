@@ -2,7 +2,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.client import Client
-from app.schemas.appointment import ClientCreate
+from app.schemas.appointment import ClientCreate, ClientUpdate
 
 
 class ClientRepository:
@@ -23,6 +23,19 @@ class ClientRepository:
             vehicle_brand_model=data.vehicle_brand_model,
         )
         self._session.add(client)
+        await self._session.flush()
+        await self._session.refresh(client)
+        return client
+
+    async def update(self, client: Client, data: ClientUpdate) -> Client:
+        if data.full_name is not None:
+            client.full_name = data.full_name
+        if data.phone is not None:
+            client.phone = data.phone
+        if data.license_plate is not None:
+            client.license_plate = data.license_plate
+        if data.vehicle_brand_model is not None:
+            client.vehicle_brand_model = data.vehicle_brand_model
         await self._session.flush()
         await self._session.refresh(client)
         return client

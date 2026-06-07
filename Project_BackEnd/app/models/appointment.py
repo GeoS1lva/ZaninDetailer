@@ -1,4 +1,3 @@
-import uuid
 from datetime import datetime
 from decimal import Decimal
 from enum import Enum
@@ -42,13 +41,6 @@ class Appointment(Base):
         index=True,
     )
     total_price: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
-
-    cancellation_token: Mapped[str] = mapped_column(
-        String(36),
-        nullable=False,
-        unique=True,
-        default=lambda: str(uuid.uuid4()),
-    )
 
     google_event_id: Mapped[str | None] = mapped_column(String(200), nullable=True)
 

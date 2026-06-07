@@ -86,10 +86,23 @@ class AuthService:
 
     def update_password(self, data: PasswordUpdateRequest) -> dict:
         try:
+            # Valida o token e obtém o user_id sem mutar estado do cliente singleton
             supabase = get_supabase_client()
-            supabase.auth.set_session(data.access_token, "")
-            supabase.auth.update_user({"password": data.new_password})
+            user_response = supabase.auth.get_user(data.access_token)
+            if not user_response or not user_response.user:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Token inválido ou expirado. Solicite um novo reset de senha.",
+                )
+
+            user_id = str(user_response.user.id)
+
+            # Atualiza via admin (sem afetar o estado interno do cliente anon)
+            admin = get_supabase_admin()
+            admin.auth.admin.update_user_by_id(user_id, {"password": data.new_password})
             return {"message": "Senha atualizada com sucesso."}
+        except HTTPException:
+            raise
         except Exception as e:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
