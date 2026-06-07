@@ -1,23 +1,31 @@
 class AdminServiceModel {
-  final String nome;
-  final String preco;
-  final String tempoEstimado;
-
-  final String? imagePath;
+  final int id;
+  final String name;
+  final double price;
+  final int durationMinutes;
+  final String? description;
+  final String? imageUrl;
+  final String? durationDisplay;
 
   AdminServiceModel({
-    required this.nome,
-    required this.preco,
-    required this.tempoEstimado,
-    this.imagePath,
+    this.id = 0,
+    required this.name,
+    required this.price,
+    required this.durationMinutes,
+    this.description,
+    this.imageUrl,
+    this.durationDisplay,
   });
 
-  Map<String, dynamic> toJson() {
-    return {
-      'nome': nome,
-      'preco': preco,
-      'tempo_estimado': tempoEstimado,
-      'image_path': imagePath,
-    };
+  factory AdminServiceModel.fromJson(Map<String, dynamic> json) {
+    return AdminServiceModel(
+      id: json['id'] ?? 0,
+      name: json['name'] ?? '',
+      price: double.tryParse(json['price'].toString()) ?? 0.0,
+      durationMinutes: json['duration_minutes'] ?? 0,
+      description: json['description'],
+      imageUrl: json['image_url'],
+      durationDisplay: json['duration_display'],
+    );
   }
 }

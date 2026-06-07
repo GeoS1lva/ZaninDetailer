@@ -6,6 +6,9 @@ class AdminAgendaModel {
   final String servico;
   final String status;
 
+  final DateTime? scheduledStart;
+  final double? totalPrice;
+
   AdminAgendaModel({
     required this.id,
     required this.veiculo,
@@ -13,5 +16,26 @@ class AdminAgendaModel {
     required this.cliente,
     required this.servico,
     required this.status,
+    this.scheduledStart,
+    this.totalPrice,
   });
+
+  factory AdminAgendaModel.fromJson(Map<String, dynamic> json) {
+    final clientMap = json['client'] ?? {};
+
+    return AdminAgendaModel(
+      id: json['id']?.toString() ?? '',
+      veiculo: clientMap['vehicle_brand_model'] ?? 'Veículo não informado',
+      placa: clientMap['license_plate'] ?? 'Sem placa',
+      cliente: clientMap['full_name'] ?? 'Cliente não informado',
+      servico: 'Serviço #${json['service_id'] ?? '?'}',
+      status: json['status'] ?? 'PENDENTE',
+      scheduledStart: json['scheduled_start'] != null
+          ? DateTime.tryParse(json['scheduled_start'])
+          : null,
+      totalPrice: json['total_price'] != null
+          ? double.tryParse(json['total_price'].toString())
+          : 0.0,
+    );
+  }
 }

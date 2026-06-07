@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
-import '../../../../core/error/failures.dart';
+import 'package:intl/intl.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../data/models/service_model.dart';
 import '../../domain/repositories/i_booking_repository.dart';
+import '../../../../di/injection_container.dart' as di;
 
 class BookingProvider extends ChangeNotifier {
   final IBookingRepository _repository;
@@ -24,6 +26,14 @@ class BookingProvider extends ChangeNotifier {
   List<String> _availableHours = [];
   List<String> get availableHours => _availableHours;
 
+  final nameController = TextEditingController();
+  final vehicleController = TextEditingController();
+  final plateController = TextEditingController();
+  final whatsappController = TextEditingController();
+
+  bool _isLoading = false;
+  bool get isLoading => _isLoading;
+
   void setService(ServiceModel service) {
     _selectedService = service;
   }
@@ -41,29 +51,25 @@ class BookingProvider extends ChangeNotifier {
   }
 
   Future<void> _fetchAvailableHours() async {
+    if (_selectedService == null) return;
+
     _isLoadingHours = true;
     _availableHours = [];
     notifyListeners();
 
-    await Future.delayed(const Duration(seconds: 1));
+    final dateStr = DateFormat('yyyy-MM-dd').format(_selectedDate);
 
-    if (_selectedDate.weekday == DateTime.saturday) {
-      _availableHours = ['08:00', '09:00', '10:00', '11:00'];
-    } else if (_selectedDate.weekday != DateTime.sunday) {
-      _availableHours = ['08:00', '10:00', '13:00', '15:00', '17:00'];
-    }
+    final result =
+        await _repository.getAvailableSlots(_selectedService!.id, dateStr);
+
+    result.fold(
+      (failure) => _availableHours = [],
+      (times) => _availableHours = times,
+    );
 
     _isLoadingHours = false;
     notifyListeners();
   }
-
-  final nameController = TextEditingController();
-  final vehicleController = TextEditingController();
-  final plateController = TextEditingController();
-  final whatsappController = TextEditingController();
-
-  bool _isLoading = false;
-  bool get isLoading => _isLoading;
 
   Future<bool> confirmBooking(
       ServiceModel service, DateTime date, String time) async {
@@ -76,21 +82,36 @@ class BookingProvider extends ChangeNotifier {
     _isLoading = true;
     notifyListeners();
 
+    final timeParts = time.split(':');
+    final combinedDate = DateTime(date.year, date.month, date.day,
+        int.parse(timeParts[0]), int.parse(timeParts[1]));
+
+    final isoDateStr =
+        "${DateFormat("yyyy-MM-dd'T'HH:mm:ss").format(combinedDate)}-03:00";
+
     final result = await _repository.submitBooking(
-      service: service,
-      date: date,
-      time: time,
-      clientName: nameController.text,
-      whatsapp: whatsappController.text,
-      licensePlate: plateController.text,
+      serviceId: service.id,
+      scheduledStartIso: isoDateStr,
+      clientName: nameController.text.trim(),
+      whatsapp: whatsappController.text.trim(),
+      licensePlate: plateController.text.trim(),
       vehicleModel: vehicleController.text.isEmpty
           ? "Não identificado"
-          : vehicleController.text,
+          : vehicleController.text.trim(),
     );
+
     _isLoading = false;
     notifyListeners();
 
-    return result.fold((failure) => false, (success) => true);
+    return result.fold((failure) {
+      debugPrint("Erro no agendamento: ${failure.message}");
+      return false;
+    }, (cancellationToken) async {
+      final storage = di.sl<FlutterSecureStorage>();
+
+      await storage.write(key: 'last_booking_token', value: cancellationToken);
+      return true;
+    });
   }
 
   @override
@@ -98,6 +119,7 @@ class BookingProvider extends ChangeNotifier {
     nameController.dispose();
     vehicleController.dispose();
     plateController.dispose();
+    whatsappController.dispose();
     super.dispose();
   }
 }

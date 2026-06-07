@@ -7,37 +7,60 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../di/injection_container.dart' as di;
-import '../providers/admin_brand_provider.dart';
+import '../../data/models/admin_service_model.dart';
+import '../providers/admin_service_provider.dart';
 import '../widgets/admin_custom_input.dart';
 import '../widgets/dashed_rect_painter.dart';
 
-class AdminNewBrandPage extends StatelessWidget {
-  const AdminNewBrandPage({super.key});
+class AdminEditServicePage extends StatelessWidget {
+  final AdminServiceModel servico;
+  const AdminEditServicePage({super.key, required this.servico});
 
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (_) => di.sl<AdminBrandProvider>(),
-      child: const _AdminNewBrandView(),
+      create: (_) => di.sl<AdminServiceProvider>(),
+      child: _AdminEditServiceView(servico: servico),
     );
   }
 }
 
-class _AdminNewBrandView extends StatefulWidget {
-  const _AdminNewBrandView();
+class _AdminEditServiceView extends StatefulWidget {
+  final AdminServiceModel servico;
+  const _AdminEditServiceView({required this.servico});
 
   @override
-  State<_AdminNewBrandView> createState() => _AdminNewBrandViewState();
+  State<_AdminEditServiceView> createState() => _AdminEditServiceViewState();
 }
 
-class _AdminNewBrandViewState extends State<_AdminNewBrandView> {
+class _AdminEditServiceViewState extends State<_AdminEditServiceView> {
   XFile? _image;
   final ImagePicker _picker = ImagePicker();
-  final TextEditingController _nomeController = TextEditingController();
+
+  late TextEditingController _nomeController;
+  late TextEditingController _precoController;
+  late TextEditingController _tempoController;
+  late TextEditingController _descricaoController;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _nomeController = TextEditingController(text: widget.servico.name);
+    _precoController =
+        TextEditingController(text: widget.servico.price.toStringAsFixed(2));
+    _tempoController =
+        TextEditingController(text: widget.servico.durationMinutes.toString());
+    _descricaoController =
+        TextEditingController(text: widget.servico.description ?? '');
+  }
 
   @override
   void dispose() {
     _nomeController.dispose();
+    _precoController.dispose();
+    _tempoController.dispose();
+    _descricaoController.dispose();
     super.dispose();
   }
 
@@ -51,33 +74,37 @@ class _AdminNewBrandViewState extends State<_AdminNewBrandView> {
     }
   }
 
-  void _removeImage() => setState(() => _image = null);
-
   Future<void> _handleSave() async {
     FocusScope.of(context).unfocus();
 
-    if (_nomeController.text.trim().isEmpty) {
+    if (_nomeController.text.trim().isEmpty ||
+        _precoController.text.trim().isEmpty ||
+        _tempoController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('O nome da marca é obrigatório!'),
+          content: Text('Preencha os campos obrigatórios!'),
           backgroundColor: Colors.redAccent));
       return;
     }
 
-    final provider = context.read<AdminBrandProvider>();
-    final sucesso = await provider.salvarNovaMarca(
+    final provider = context.read<AdminServiceProvider>();
+    final sucesso = await provider.atualizarServico(
+      id: widget.servico.id,
       nome: _nomeController.text.trim(),
+      preco: _precoController.text.trim().replaceAll(',', '.'),
+      tempoEstimado: _tempoController.text.trim(),
+      descricao: _descricaoController.text.trim(),
       imagem: _image,
     );
 
     if (mounted) {
       if (sucesso) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Marca criada com sucesso!'),
+            content: Text('Serviço atualizado!'),
             backgroundColor: Colors.green));
         context.pop();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(provider.errorMessage ?? 'Erro ao salvar marca'),
+            content: Text(provider.errorMessage ?? 'Erro'),
             backgroundColor: Colors.redAccent));
       }
     }
@@ -85,7 +112,7 @@ class _AdminNewBrandViewState extends State<_AdminNewBrandView> {
 
   @override
   Widget build(BuildContext context) {
-    final isLoading = context.watch<AdminBrandProvider>().isLoading;
+    final isLoading = context.watch<AdminServiceProvider>().isLoading;
     final textTheme = Theme.of(context).textTheme;
 
     return Scaffold(
@@ -122,7 +149,7 @@ class _AdminNewBrandViewState extends State<_AdminNewBrandView> {
                           child: const Icon(Icons.arrow_back_ios_new,
                               color: AppTheme.primaryRed, size: 18))),
                   const SizedBox(height: 32),
-                  Text('Nova Marca', style: textTheme.headlineLarge),
+                  Text('Editar Serviço', style: textTheme.headlineLarge),
                   const SizedBox(height: 32),
                   Expanded(
                     child: SingleChildScrollView(
@@ -130,10 +157,27 @@ class _AdminNewBrandViewState extends State<_AdminNewBrandView> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           AdminCustomInput(
-                              hint: 'Nome da Marca',
+                              hint: 'Nome do Serviço',
                               controller: _nomeController),
+                          const SizedBox(height: 16),
+                          AdminCustomInput(
+                              hint: 'Preço (ex: 150.00)',
+                              prefixText: 'R\$ ',
+                              controller: _precoController,
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(
+                                      decimal: true)),
+                          const SizedBox(height: 16),
+                          AdminCustomInput(
+                              hint: 'Duração em minutos',
+                              controller: _tempoController,
+                              keyboardType: TextInputType.number),
+                          const SizedBox(height: 16),
+                          AdminCustomInput(
+                              hint: 'Descrição do Serviço',
+                              controller: _descricaoController),
                           const SizedBox(height: 32),
-                          _image == null
+                          _image == null && widget.servico.imageUrl == null
                               ? _buildDashedUploadArea(textTheme)
                               : _buildImagePreview(),
                           const SizedBox(height: 40),
@@ -158,7 +202,8 @@ class _AdminNewBrandViewState extends State<_AdminNewBrandView> {
                               height: 24,
                               child: CircularProgressIndicator(
                                   color: Colors.white, strokeWidth: 3))
-                          : Text('Salvar Marca', style: textTheme.labelLarge),
+                          : Text('Salvar Alterações',
+                              style: textTheme.labelLarge),
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -190,7 +235,7 @@ class _AdminNewBrandViewState extends State<_AdminNewBrandView> {
                     Icon(Icons.camera_alt_outlined,
                         color: Colors.white.withValues(alpha: 0.4), size: 60),
                     const SizedBox(height: 16),
-                    Text('Faça upload da logo da marca',
+                    Text('Atualizar imagem de destaque',
                         textAlign: TextAlign.center,
                         style: textTheme.bodyMedium)
                   ]))),
@@ -209,22 +254,24 @@ class _AdminNewBrandViewState extends State<_AdminNewBrandView> {
                   color: AppTheme.primaryRed.withValues(alpha: 0.5), width: 2)),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(10),
-            child: kIsWeb
-                ? Image.network(_image!.path, fit: BoxFit.cover)
-                : Image.file(File(_image!.path), fit: BoxFit.cover),
+            child: _image == null
+                ? Image.network(widget.servico.imageUrl!, fit: BoxFit.cover)
+                : (kIsWeb
+                    ? Image.network(_image!.path, fit: BoxFit.cover)
+                    : Image.file(File(_image!.path), fit: BoxFit.cover)),
           ),
         ),
         Positioned(
           top: 10,
           right: 10,
           child: GestureDetector(
-            onTap: _removeImage,
+            onTap: _pickImage,
             child: Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                     color: Colors.black.withValues(alpha: 0.7),
                     shape: BoxShape.circle),
-                child: const Icon(Icons.close, color: Colors.white, size: 20)),
+                child: const Icon(Icons.edit, color: Colors.white, size: 20)),
           ),
         ),
       ],
