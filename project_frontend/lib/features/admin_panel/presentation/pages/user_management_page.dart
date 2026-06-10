@@ -4,6 +4,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../di/injection_container.dart' as di;
 import '../../data/models/user_model.dart';
 import '../providers/user_management_provider.dart';
+import '../widgets/admin_custom_input.dart';
 
 class UserManagementPage extends StatelessWidget {
   const UserManagementPage({super.key});
@@ -46,70 +47,92 @@ class _UserManagementViewState extends State<_UserManagementView> {
     final emailController = TextEditingController();
     final nameController = TextEditingController();
     final passwordController = TextEditingController();
+    bool obscurePassword = true;
 
     final provider = context.read<UserManagementProvider>();
 
     showDialog(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: const Color(0xFF1E1E1E),
-        title: const Text('Novo Admin', style: TextStyle(color: Colors.white)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          backgroundColor: const Color(0xFF1E1E1E),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title:
+              const Text('Novo Admin', style: TextStyle(color: Colors.white)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AdminCustomInput(
+                hint: 'Nome completo',
                 controller: nameController,
-                style: const TextStyle(color: Colors.white),
-                decoration: const InputDecoration(
-                    labelText: 'Nome',
-                    labelStyle: TextStyle(color: Colors.white54))),
-            TextField(
+                prefixIcon: Icons.person_outline,
+              ),
+              const SizedBox(height: 12),
+              AdminCustomInput(
+                hint: 'E-mail',
                 controller: emailController,
-                style: const TextStyle(color: Colors.white),
-                decoration: const InputDecoration(
-                    labelText: 'Email',
-                    labelStyle: TextStyle(color: Colors.white54))),
-            TextField(
+                prefixIcon: Icons.email_outlined,
+                keyboardType: TextInputType.emailAddress,
+              ),
+              const SizedBox(height: 12),
+              AdminCustomInput(
+                hint: 'Senha',
                 controller: passwordController,
-                style: const TextStyle(color: Colors.white),
-                decoration: const InputDecoration(
-                    labelText: 'Senha',
-                    labelStyle: TextStyle(color: Colors.white54)),
-                obscureText: true),
-          ],
-        ),
-        actions: [
-          TextButton(
+                prefixIcon: Icons.lock_outline,
+                obscureText: obscurePassword,
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    obscurePassword
+                        ? Icons.visibility_off_outlined
+                        : Icons.visibility_outlined,
+                    color: Colors.white38,
+                    size: 20,
+                  ),
+                  onPressed: () =>
+                      setDialogState(() => obscurePassword = !obscurePassword),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              style:
+                  TextButton.styleFrom(foregroundColor: Colors.white38),
               onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Cancelar')),
-          ElevatedButton(
-            style:
-                ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryRed),
-            onPressed: () async {
-              final success = await provider.createUser(emailController.text,
-                  passwordController.text, nameController.text);
-
-              if (!mounted) return;
-
-              if (success) {
-                Navigator.of(context).pop();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primaryRed,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8)),
+                elevation: 0,
+              ),
+              onPressed: () async {
+                final nav = Navigator.of(context);
+                final messenger = ScaffoldMessenger.of(context);
+                final success = await provider.createUser(emailController.text,
+                    passwordController.text, nameController.text);
+                if (!mounted) return;
+                if (success) {
+                  nav.pop();
+                  messenger.showSnackBar(const SnackBar(
                       content: Text('Administrador criado com sucesso!'),
-                      backgroundColor: Colors.green),
-                );
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
+                      backgroundColor: AppTheme.successGreen));
+                } else {
+                  messenger.showSnackBar(SnackBar(
                       content:
                           Text(provider.errorMessage ?? 'Erro desconhecido'),
-                      backgroundColor: Colors.redAccent),
-                );
-              }
-            },
-            child: const Text('Criar', style: TextStyle(color: Colors.white)),
-          ),
-        ],
+                      backgroundColor: AppTheme.primaryRed));
+                }
+              },
+              child: const Text('Criar',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -117,73 +140,93 @@ class _UserManagementViewState extends State<_UserManagementView> {
   Future<void> _showEditUserModal(UserModel user) async {
     final nameController = TextEditingController(text: user.fullName);
     final passwordController = TextEditingController();
+    bool obscurePassword = true;
 
     final provider = context.read<UserManagementProvider>();
 
     showDialog(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: const Color(0xFF1E1E1E),
-        title:
-            const Text('Editar Admin', style: TextStyle(color: Colors.white)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          backgroundColor: const Color(0xFF1E1E1E),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('Editar Admin',
+              style: TextStyle(color: Colors.white)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AdminCustomInput(
+                hint: 'Nome completo',
                 controller: nameController,
-                style: const TextStyle(color: Colors.white),
-                decoration: const InputDecoration(
-                    labelText: 'Nome',
-                    labelStyle: TextStyle(color: Colors.white54))),
-            const SizedBox(height: 12),
-            TextField(
-              controller: passwordController,
-              style: const TextStyle(color: Colors.white),
-              decoration: const InputDecoration(
-                labelText: 'Nova Senha (opcional)',
-                labelStyle: TextStyle(color: Colors.white54),
-                helperText: 'Deixe em branco para não alterar',
-                helperStyle: TextStyle(color: Colors.white30),
+                prefixIcon: Icons.person_outline,
               ),
-              obscureText: true,
+              const SizedBox(height: 12),
+              AdminCustomInput(
+                hint: 'Nova senha (opcional)',
+                controller: passwordController,
+                prefixIcon: Icons.lock_outline,
+                obscureText: obscurePassword,
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    obscurePassword
+                        ? Icons.visibility_off_outlined
+                        : Icons.visibility_outlined,
+                    color: Colors.white38,
+                    size: 20,
+                  ),
+                  onPressed: () =>
+                      setDialogState(() => obscurePassword = !obscurePassword),
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Deixe em branco para não alterar a senha.',
+                style: TextStyle(color: Colors.white.withValues(alpha: 0.3),
+                    fontSize: 11),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              style: TextButton.styleFrom(foregroundColor: Colors.white38),
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primaryRed,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8)),
+                elevation: 0,
+              ),
+              onPressed: () async {
+                final nav = Navigator.of(context);
+                final messenger = ScaffoldMessenger.of(context);
+                final success = await provider.updateUser(
+                  user.id,
+                  fullName: nameController.text,
+                  password: passwordController.text,
+                );
+                if (!mounted) return;
+                if (success) {
+                  nav.pop();
+                  messenger.showSnackBar(const SnackBar(
+                      content: Text('Dados atualizados com sucesso!'),
+                      backgroundColor: AppTheme.successGreen));
+                } else {
+                  messenger.showSnackBar(SnackBar(
+                      content:
+                          Text(provider.errorMessage ?? 'Erro desconhecido'),
+                      backgroundColor: AppTheme.primaryRed));
+                }
+              },
+              child: const Text('Salvar',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Cancelar')),
-          ElevatedButton(
-            style:
-                ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryRed),
-            onPressed: () async {
-              final success = await provider.updateUser(
-                user.id,
-                fullName: nameController.text,
-                password: passwordController.text,
-              );
-
-              if (!mounted) return;
-
-              if (success) {
-                Navigator.of(context).pop();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                      content: Text('Dados atualizados com sucesso!'),
-                      backgroundColor: Colors.green),
-                );
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                      content:
-                          Text(provider.errorMessage ?? 'Erro desconhecido'),
-                      backgroundColor: Colors.redAccent),
-                );
-              }
-            },
-            child: const Text('Salvar', style: TextStyle(color: Colors.white)),
-          ),
-        ],
       ),
     );
   }
@@ -259,34 +302,47 @@ class _UserManagementViewState extends State<_UserManagementView> {
                                     style: TextStyle(color: Colors.white)),
                                 actions: [
                                   TextButton(
-                                      onPressed: () =>
-                                          Navigator.pop(dialogContext, false),
-                                      child: const Text('Cancelar')),
-                                  TextButton(
-                                      onPressed: () =>
-                                          Navigator.pop(dialogContext, true),
-                                      child: const Text('Remover',
-                                          style: TextStyle(color: Colors.red))),
+                                    style: TextButton.styleFrom(
+                                        foregroundColor: Colors.white38),
+                                    onPressed: () =>
+                                        Navigator.pop(dialogContext, false),
+                                    child: const Text('Cancelar'),
+                                  ),
+                                  ElevatedButton(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFFC62828),
+                                      foregroundColor: Colors.white,
+                                      shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(8)),
+                                      elevation: 0,
+                                    ),
+                                    onPressed: () =>
+                                        Navigator.pop(dialogContext, true),
+                                    child: const Text('Remover',
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.bold)),
+                                  ),
                                 ],
                               ),
                             );
                             if (confirm != true) return;
-                            if (!mounted) return;
+                            if (!context.mounted) return;
 
+                            final messenger = ScaffoldMessenger.of(context);
                             await provider.deleteUser(user.id);
                             if (!mounted) return;
 
                             final snackBar = provider.errorMessage == null
                                 ? const SnackBar(
                                     content: Text('Administrador removido.'),
-                                    backgroundColor: Colors.green)
+                                    backgroundColor: AppTheme.successGreen)
                                 : SnackBar(
                                     content: Text(provider.errorMessage ??
                                         'Erro ao remover'),
-                                    backgroundColor: Colors.redAccent);
+                                    backgroundColor: AppTheme.primaryRed);
 
-                            ScaffoldMessenger.of(context)
-                                .showSnackBar(snackBar);
+                            messenger.showSnackBar(snackBar);
                           },
                         ),
                       ],

@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:fpdart/fpdart.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../../../../core/constants/app_constants.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/error/failures.dart';
 import '../../domain/repositories/i_auth_repository.dart';
@@ -32,10 +33,10 @@ class AuthRepositoryImpl implements IAuthRepository {
       final refreshToken = response.data['refresh_token'];
 
       if (accessToken != null) {
-        await _storage.write(key: 'access_token', value: accessToken);
+        await _storage.write(key: StoreKeys.accessToken, value: accessToken);
       }
       if (refreshToken != null) {
-        await _storage.write(key: 'refresh_token', value: refreshToken);
+        await _storage.write(key: StoreKeys.refreshToken, value: refreshToken);
       }
 
       return Right(LoginResponseModel.fromJson(response.data));

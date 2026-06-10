@@ -65,7 +65,7 @@ class AppTheme {
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: surface,
+        fillColor: background.withValues(alpha: 0.5),
         hintStyle: _textTheme.bodyLarge?.copyWith(color: Colors.white30),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),

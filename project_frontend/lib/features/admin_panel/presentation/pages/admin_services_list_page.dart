@@ -82,8 +82,7 @@ class _AdminServicesListView extends StatelessWidget {
                             icon: const Icon(Icons.edit_outlined,
                                 color: Colors.white54),
                             onPressed: () async {
-                              await context.push('/admin/servicos/editar',
-                                  extra: servico);
+                              await context.push(AppRouter.adminEditarServico, extra: servico);
 
                               if (context.mounted) {
                                 context
@@ -104,15 +103,28 @@ class _AdminServicesListView extends StatelessWidget {
                                       style: TextStyle(color: Colors.white)),
                                   actions: [
                                     TextButton(
-                                        onPressed: () =>
-                                            Navigator.pop(ctx, false),
-                                        child: const Text('Cancelar')),
-                                    TextButton(
-                                        onPressed: () =>
-                                            Navigator.pop(ctx, true),
-                                        child: const Text('Excluir',
-                                            style:
-                                                TextStyle(color: Colors.red))),
+                                      style: TextButton.styleFrom(
+                                          foregroundColor: Colors.white38),
+                                      onPressed: () =>
+                                          Navigator.pop(ctx, false),
+                                      child: const Text('Cancelar'),
+                                    ),
+                                    ElevatedButton(
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor:
+                                            const Color(0xFFC62828),
+                                        foregroundColor: Colors.white,
+                                        shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(8)),
+                                        elevation: 0,
+                                      ),
+                                      onPressed: () =>
+                                          Navigator.pop(ctx, true),
+                                      child: const Text('Excluir',
+                                          style: TextStyle(
+                                              fontWeight: FontWeight.bold)),
+                                    ),
                                   ],
                                 ),
                               );

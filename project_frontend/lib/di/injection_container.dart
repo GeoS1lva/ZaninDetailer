@@ -10,6 +10,7 @@ import '../features/admin_panel/presentation/providers/admin_service_provider.da
 import '../features/admin_panel/presentation/providers/admin_provider.dart';
 import '../features/admin_panel/presentation/providers/user_management_provider.dart';
 import '../features/admin_panel/presentation/providers/admin_brand_provider.dart';
+import '../features/admin_panel/presentation/providers/admin_showcase_provider.dart';
 import '../features/client_booking/domain/repositories/i_booking_repository.dart';
 import '../features/client_booking/data/repositories/booking_repository_impl.dart';
 import '../features/client_booking/presentation/providers/service_selection_provider.dart';
@@ -37,6 +38,7 @@ Future<void> init() async {
   sl.registerFactory(() => AdminProvider(repository: sl<IAdminRepository>()));
   sl.registerFactory(() => UserManagementProvider(repository: sl()));
   sl.registerFactory(() => AdminBrandProvider(repository: sl()));
+  sl.registerFactory(() => AdminShowcaseProvider(repository: sl<IAdminRepository>()));
 
   sl.registerLazySingleton<UserManagementRepository>(
       () => UserManagementRepository(apiClient: sl<ApiClient>()));
@@ -45,6 +47,5 @@ Future<void> init() async {
       () => BookingRepositoryImpl(apiClient: sl()));
   sl.registerFactory(
       () => ServiceSelectionProvider(repository: sl<IBookingRepository>()));
-  sl.registerFactory(
-      () => BookingProvider(repository: sl<IBookingRepository>()));
+  sl.registerFactory(() => BookingProvider(repository: sl()));
 }
