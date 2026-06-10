@@ -30,7 +30,7 @@ class ApiClient {
     dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
-          final token = await _storage.read(key: StoreKeys.acessToken);
+          final token = await _storage.read(key: StoreKeys.accessToken);
           if (token != null) {
             options.headers['Authorization'] = 'Bearer $token';
           }
@@ -51,11 +51,11 @@ class ApiClient {
                   data: {'refresh_token': refreshToken},
                 );
 
-                final newAccessToken = refreshResponse.data['access_toke'];
+                final newAccessToken = refreshResponse.data['access_token'];
                 final newRefreshToken = refreshResponse.data['refresh_token'];
 
                 await _storage.write(
-                    key: StoreKeys.acessToken, value: newAccessToken);
+                    key: StoreKeys.accessToken, value: newAccessToken);
                 await _storage.write(
                     key: StoreKeys.refreshToken, value: newRefreshToken);
 

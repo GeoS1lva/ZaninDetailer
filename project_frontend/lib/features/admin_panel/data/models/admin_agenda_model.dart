@@ -3,6 +3,8 @@ class AdminAgendaModel {
   final String veiculo;
   final String placa;
   final String cliente;
+  final String telefone;
+  final int serviceId;
   final String servico;
   final String status;
 
@@ -14,6 +16,8 @@ class AdminAgendaModel {
     required this.veiculo,
     required this.placa,
     required this.cliente,
+    required this.telefone,
+    required this.serviceId,
     required this.servico,
     required this.status,
     this.scheduledStart,
@@ -28,8 +32,10 @@ class AdminAgendaModel {
       veiculo: clientMap['vehicle_brand_model'] ?? 'Veículo não informado',
       placa: clientMap['license_plate'] ?? 'Sem placa',
       cliente: clientMap['full_name'] ?? 'Cliente não informado',
+      telefone: clientMap['phone'] ?? '',
+      serviceId: json['service_id'] ?? 0,
       servico: 'Serviço #${json['service_id'] ?? '?'}',
-      status: json['status'] ?? 'PENDENTE',
+      status: json['status'] ?? 'pendente',
       scheduledStart: json['scheduled_start'] != null
           ? DateTime.tryParse(json['scheduled_start'])
           : null,

@@ -19,9 +19,8 @@ class ServiceSelectionProvider extends ChangeNotifier {
   List<String> _lastWorks = [];
   List<String> get lastWorks => _lastWorks;
 
-  final List<String> brandLogos = [
-    'assets/images/logo_vonixx.jpg',
-  ];
+  List<String> _brandLogos = [];
+  List<String> get brandLogos => _brandLogos;
 
   Future<void> fetchApiData() async {
     _isLoading = true;
@@ -30,10 +29,12 @@ class ServiceSelectionProvider extends ChangeNotifier {
     final results = await Future.wait([
       _repository.getServices(),
       _repository.getLastWorks(),
+      _repository.getBrands(),
     ]);
 
     final servicesResult = results[0] as Either<Failure, List<ServiceModel>>;
     final worksResult = results[1] as Either<Failure, List<String>>;
+    final brandsResult = results[2] as Either<Failure, List<String>>;
 
     servicesResult.fold(
       (failure) => debugPrint("Erro ao carregar serviços: ${failure.message}"),
@@ -43,6 +44,11 @@ class ServiceSelectionProvider extends ChangeNotifier {
     worksResult.fold(
       (failure) => debugPrint("Erro ao carregar trabalhos: ${failure.message}"),
       (worksData) => _lastWorks = worksData,
+    );
+
+    brandsResult.fold(
+      (failure) => debugPrint("Erro ao carregar marcas: ${failure.message}"),
+      (brandsData) => _brandLogos = brandsData,
     );
 
     _isLoading = false;

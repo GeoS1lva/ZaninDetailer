@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:provider/provider.dart';
+import '../constants/app_constants.dart';
 import '../../di/injection_container.dart' as di;
 import '../../features/client_booking/data/models/service_model.dart';
 import '../../features/admin_panel/data/models/admin_service_model.dart';
@@ -17,7 +18,9 @@ import '../../features/admin_panel/presentation/pages/admin_edit_service_page.da
 import '../../features/admin_panel/presentation/pages/admin_brands_list_page.dart';
 import '../../features/admin_panel/presentation/pages/admin_new_brand_page.dart';
 import '../../features/admin_panel/presentation/pages/admin_edit_brand_page.dart';
+import '../../features/admin_panel/presentation/pages/admin_showcases_page.dart';
 import '../../features/auth/presentation/pages/password_update_page.dart';
+import '../../features/client_booking/presentation/providers/booking_provider.dart';
 import '../../features/admin_panel/presentation/providers/admin_provider.dart';
 import '../../features/admin_panel/presentation/providers/admin_service_provider.dart';
 import '../../features/admin_panel/presentation/providers/user_management_provider.dart';
@@ -27,18 +30,21 @@ class AppRouter {
   static const String home = '/';
   static const String services = '/services';
   static const String booking = '/booking';
+  static const String myAppointments = '/my-appointments';
   static const String passwordUpdate = '/password-update';
 
   static const String admin = '/admin';
-  static const String adminUsers = '/admin-usuarios';
+  static const String adminUsers = '/admin/users';
 
   static const String adminServicosList = '/admin/services';
   static const String adminNovoServico = '/admin/new-service';
-  static const String adminEditarServico = '/admin/services/edit';
+  static const String adminEditarServico = '/admin/edit-service';
 
   static const String adminMarcasList = '/admin/brands';
   static const String adminNovaMarca = '/admin/new-brand';
-  static const String adminEditarMarca = '/admin/brands/edit';
+  static const String adminEditarMarca = '/admin/edit-brands';
+
+  static const String adminVitrines = '/admin/showcases';
 
   static final router = GoRouter(
     initialLocation: home,
@@ -59,7 +65,10 @@ class AppRouter {
         },
         builder: (context, state) {
           final service = state.extra as ServiceModel;
-          return BookingPage(service: service);
+          return ChangeNotifierProvider(
+            create: (_) => di.sl<BookingProvider>(),
+            child: BookingPage(service: service),
+          );
         },
       ),
       GoRoute(
@@ -73,7 +82,7 @@ class AppRouter {
         path: admin,
         redirect: (context, state) async {
           final storage = di.sl<FlutterSecureStorage>();
-          final token = await storage.read(key: 'access_token');
+          final token = await storage.read(key: StoreKeys.accessToken);
 
           if (token == null || token.isEmpty) {
             return services;
@@ -91,7 +100,7 @@ class AppRouter {
         ),
         routes: [
           GoRoute(
-            path: adminUsers,
+            path: 'users',
             builder: (context, state) => ChangeNotifierProvider(
               create: (_) => di.sl<UserManagementProvider>(),
               child: const UserManagementPage(),
@@ -102,7 +111,7 @@ class AppRouter {
             builder: (context, state) => const AdminServicesListPage(),
           ),
           GoRoute(
-            path: 'services/edit',
+            path: 'edit-service',
             builder: (context, state) {
               final services = state.extra as AdminServiceModel;
               return AdminEditServicePage(servico: services);
@@ -132,14 +141,14 @@ class AppRouter {
             builder: (context, state) => const AdminBrandsListPage(),
           ),
           GoRoute(
-            path: 'marcas/editar',
+            path: 'edit-brands',
             builder: (context, state) {
               final marca = state.extra as AdminBrandModel;
               return AdminEditBrandPage(marca: marca);
             },
           ),
           GoRoute(
-            path: 'nova-marca',
+            path: 'new-brand',
             pageBuilder: (context, state) {
               return CustomTransitionPage(
                 key: state.pageKey,
@@ -156,6 +165,10 @@ class AppRouter {
                 },
               );
             },
+          ),
+          GoRoute(
+            path: 'showcases',
+            builder: (context, state) => const AdminShowcasesPage(),
           ),
         ],
       ),

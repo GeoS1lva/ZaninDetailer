@@ -9,7 +9,7 @@ import '../providers/service_selection_provider.dart';
 import '../../../../features/client_booking/data/models/service_model.dart';
 import '../../../../di/injection_container.dart' as di;
 import '../../../auth/presentation/providers/auth_provider.dart';
-import '../../../../core/utils/string_utils.dart';
+import '../../../admin_panel/presentation/widgets/admin_custom_input.dart';
 
 class ServiceSelectionPage extends StatelessWidget {
   const ServiceSelectionPage({super.key});
@@ -117,10 +117,16 @@ class _ServiceSelectionContentState extends State<_ServiceSelectionContent> {
                             children: [
                               _buildSectionTitle(
                                   'Escolha o Serviço', textTheme),
-                              IconButton(
-                                icon: const Icon(Icons.manage_accounts,
-                                    color: AppTheme.textSecondary, size: 28),
-                                onPressed: () => _showLoginModal(context),
+                              Row(
+                                children: [
+                                  IconButton(
+                                    icon: const Icon(Icons.manage_accounts,
+                                        color: AppTheme.textSecondary,
+                                        size: 28),
+                                    onPressed: () => _showLoginModal(context),
+                                    tooltip: 'Acesso Restrito',
+                                  ),
+                                ],
                               ),
                             ],
                           ),
@@ -153,14 +159,14 @@ class _ServiceSelectionContentState extends State<_ServiceSelectionContent> {
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.start,
                                 children: provider.brandLogos
-                                    .map((logoPath) => Padding(
+                                    .map((logoUrl) => Padding(
                                           padding:
                                               const EdgeInsets.only(right: 32),
                                           child: ColorFiltered(
                                             colorFilter: const ColorFilter.mode(
                                                 Colors.grey, BlendMode.srcATop),
-                                            child: Image.asset(
-                                              logoPath,
+                                            child: Image.network(
+                                              logoUrl,
                                               height: 60,
                                               fit: BoxFit.contain,
                                               errorBuilder: (c, e, s) =>
@@ -219,6 +225,9 @@ class _ServiceSelectionContentState extends State<_ServiceSelectionContent> {
 
   Widget _buildServiceCard(
       BuildContext context, ServiceModel service, TextTheme textTheme) {
+    final bool hasValidImage =
+        service.imageUrl.isNotEmpty && service.imageUrl.startsWith('http');
+
     return GestureDetector(
       onTap: () => context.go(AppRouter.booking, extra: service),
       child: Container(
@@ -228,7 +237,10 @@ class _ServiceSelectionContentState extends State<_ServiceSelectionContent> {
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
           image: DecorationImage(
-            image: AssetImage(service.imageUrl),
+            image: hasValidImage
+                ? NetworkImage(service.imageUrl)
+                : const AssetImage('assets/images/welcome_car.jpg')
+                    as ImageProvider,
             fit: BoxFit.cover,
           ),
         ),
@@ -270,7 +282,7 @@ class _ServiceSelectionContentState extends State<_ServiceSelectionContent> {
                             ),
                             const SizedBox(height: 6),
                             Text(
-                              'Duração: ~${service.duration} • R\$ ${StringUtils.formatCurrency(service.price)}',
+                              'Duração: ~${service.duration} • ${StringUtils.formatCurrency(service.price)}',
                               style: textTheme.bodyMedium?.copyWith(
                                 color: Colors.grey[300],
                                 fontSize: 13,
@@ -304,12 +316,16 @@ class _ServiceSelectionContentState extends State<_ServiceSelectionContent> {
   }
 
   Widget _buildWorkImage(String img) {
+    final bool isWeb = img.startsWith('http');
     return Container(
       width: 280,
       margin: const EdgeInsets.only(right: 16),
       decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(20),
-          image: DecorationImage(image: AssetImage(img), fit: BoxFit.cover)),
+          image: DecorationImage(
+              image:
+                  isWeb ? NetworkImage(img) : AssetImage(img) as ImageProvider,
+              fit: BoxFit.cover)),
     );
   }
 }
@@ -331,35 +347,7 @@ class _AdminLoginDialogState extends State<AdminLoginDialog> {
 
     if (success) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.check_circle, color: Colors.white, size: 24),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    'Login realizado com sucesso!',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 15,
-                        ),
-                  ),
-                ),
-              ],
-            ),
-            backgroundColor: const Color(0xFF4CAF50),
-            behavior: SnackBarBehavior.floating,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            margin: const EdgeInsets.only(bottom: 30, left: 24, right: 24),
-            elevation: 10,
-            duration: const Duration(seconds: 3),
-          ),
-        );
-
-        context.go(AppRouter.admin);
+        context.go(AppRouter.admin, extra: const {'showLoginSuccess': true});
       }
     }
   }
@@ -415,23 +403,30 @@ class _AdminLoginDialogState extends State<AdminLoginDialog> {
                       ],
                     ),
                   ),
-                _buildInput(
-                    controller: authProvider.emailController,
-                    hint: 'Email',
-                    icon: Icons.email_outlined,
-                    enabled: !authProvider.isLoading,
-                    textTheme: textTheme),
+                AdminCustomInput(
+                  controller: authProvider.emailController,
+                  hint: 'Email',
+                  prefixIcon: Icons.email_outlined,
+                  keyboardType: TextInputType.emailAddress,
+                  enabled: !authProvider.isLoading,
+                ),
                 const SizedBox(height: 16),
-                _buildInput(
-                    controller: authProvider.passwordController,
-                    hint: 'Senha',
-                    icon: Icons.lock_outline,
-                    isPassword: true,
-                    isObscured: _isPasswordObscured,
-                    enabled: !authProvider.isLoading,
-                    onToggleVisibility: () => setState(
+                AdminCustomInput(
+                  controller: authProvider.passwordController,
+                  hint: 'Senha',
+                  prefixIcon: Icons.lock_outline,
+                  obscureText: _isPasswordObscured,
+                  enabled: !authProvider.isLoading,
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                        _isPasswordObscured
+                            ? Icons.visibility_off_outlined
+                            : Icons.visibility_outlined,
+                        color: AppTheme.primaryRed.withValues(alpha: 0.7)),
+                    onPressed: () => setState(
                         () => _isPasswordObscured = !_isPasswordObscured),
-                    textTheme: textTheme),
+                  ),
+                ),
                 const SizedBox(height: 32),
                 SizedBox(
                   width: double.infinity,
@@ -526,47 +521,6 @@ class _AdminLoginDialogState extends State<AdminLoginDialog> {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildInput(
-      {required TextEditingController controller,
-      required String hint,
-      required IconData icon,
-      bool isPassword = false,
-      bool isObscured = false,
-      bool enabled = true,
-      VoidCallback? onToggleVisibility,
-      required TextTheme textTheme}) {
-    return Container(
-      decoration: BoxDecoration(
-          color: const Color(0xFF121212),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.1))),
-      child: TextField(
-        controller: controller,
-        obscureText: isPassword ? isObscured : false,
-        enabled: enabled,
-        style: textTheme.bodyLarge
-            ?.copyWith(color: enabled ? Colors.white : Colors.grey),
-        decoration: InputDecoration(
-          hintText: hint,
-          hintStyle: textTheme.bodyLarge
-              ?.copyWith(color: Colors.white.withValues(alpha: 0.3)),
-          prefixIcon: Icon(icon, color: Colors.white.withValues(alpha: 0.3)),
-          suffixIcon: isPassword
-              ? IconButton(
-                  icon: Icon(
-                      isObscured
-                          ? Icons.visibility_off_outlined
-                          : Icons.visibility_outlined,
-                      color: AppTheme.primaryRed.withValues(alpha: 0.7)),
-                  onPressed: onToggleVisibility)
-              : null,
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(vertical: 15),
-        ),
       ),
     );
   }

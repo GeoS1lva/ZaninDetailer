@@ -4,6 +4,7 @@ class ServiceModel {
   final String duration;
   final double price;
   final String imageUrl;
+  final String? description;
 
   ServiceModel({
     required this.id,
@@ -11,6 +12,7 @@ class ServiceModel {
     required this.duration,
     required this.price,
     required this.imageUrl,
+    this.description,
   });
 
   factory ServiceModel.fromJson(Map<String, dynamic> json) {
@@ -20,6 +22,7 @@ class ServiceModel {
       duration: json['duration_display'] ?? '',
       price: double.tryParse(json['price'].toString()) ?? 0.0,
       imageUrl: json['image_url'] ?? '',
+      description: json['description'] as String?,
     );
   }
 }

@@ -1,6 +1,7 @@
 import 'package:fpdart/fpdart.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:dio/dio.dart';
+import 'package:intl/intl.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/error/failures.dart';
 import '../../domain/repositories/i_admin_repository.dart';
@@ -8,6 +9,7 @@ import '../models/admin_service_model.dart';
 import '../models/admin_brand_model.dart';
 import '../models/admin_agenda_model.dart';
 import '../models/user_model.dart';
+import '../models/showcase_model.dart';
 
 class AdminRepositoryImpl implements IAdminRepository {
   final ApiClient _apiClient;
@@ -93,9 +95,10 @@ class AdminRepositoryImpl implements IAdminRepository {
   }
 
   @override
-  Future<Either<Failure, List<AdminAgendaModel>>> getAgendamentosHoje() async {
+  Future<Either<Failure, List<AdminAgendaModel>>> getAgendamentosHoje(
+      DateTime data) async {
     try {
-      const dataFormatada = '2026-06-06';
+      final dataFormatada = DateFormat('yyyy-MM-dd').format(data);
 
       final response = await _apiClient.dio.get(
         '/appointments/',
@@ -184,6 +187,115 @@ class AdminRepositoryImpl implements IAdminRepository {
   Future<Either<Failure, bool>> deletarMarca(int id) async {
     try {
       await _apiClient.dio.delete('/brands/$id');
+      return const Right(true);
+    } catch (e) {
+      return Left(ServerFailure(_extractErrorMessage(e)));
+    }
+  }
+
+  @override
+  Future<Either<Failure, List<ShowcaseModel>>> getVitrines() async {
+    try {
+      final response = await _apiClient.dio.get('/showcases/');
+      final List<dynamic> items = response.data['items'] ?? [];
+      return Right(items.map((j) => ShowcaseModel.fromJson(j)).toList());
+    } catch (e) {
+      return Left(ServerFailure(_extractErrorMessage(e)));
+    }
+  }
+
+  @override
+  Future<Either<Failure, bool>> criarVitrine(XFile imagem) async {
+    try {
+      final formData = FormData.fromMap({
+        'image': await MultipartFile.fromFile(imagem.path, filename: imagem.name),
+      });
+      await _apiClient.dio.post('/showcases/', data: formData);
+      return const Right(true);
+    } catch (e) {
+      return Left(ServerFailure(_extractErrorMessage(e)));
+    }
+  }
+
+  @override
+  Future<Either<Failure, bool>> atualizarVitrine(int id, XFile imagem) async {
+    try {
+      final formData = FormData.fromMap({
+        'image': await MultipartFile.fromFile(imagem.path, filename: imagem.name),
+      });
+      await _apiClient.dio.patch('/showcases/$id', data: formData);
+      return const Right(true);
+    } catch (e) {
+      return Left(ServerFailure(_extractErrorMessage(e)));
+    }
+  }
+
+  @override
+  Future<Either<Failure, bool>> deletarVitrine(int id) async {
+    try {
+      await _apiClient.dio.delete('/showcases/$id');
+      return const Right(true);
+    } catch (e) {
+      return Left(ServerFailure(_extractErrorMessage(e)));
+    }
+  }
+
+  @override
+  Future<Either<Failure, bool>> reagendarAgendamento(
+      int appointmentId, String novoHorarioIso) async {
+    try {
+      await _apiClient.dio.patch(
+        '/appointments/$appointmentId/reschedule',
+        data: {'scheduled_start': novoHorarioIso},
+      );
+      return const Right(true);
+    } catch (e) {
+      return Left(ServerFailure(_extractErrorMessage(e)));
+    }
+  }
+
+  @override
+  Future<Either<Failure, bool>> cancelarAgendamento(
+      int appointmentId, String motivo) async {
+    try {
+      await _apiClient.dio.post(
+        '/appointments/$appointmentId/cancel',
+        data: {'reason': motivo},
+      );
+      return const Right(true);
+    } catch (e) {
+      return Left(ServerFailure(_extractErrorMessage(e)));
+    }
+  }
+
+  @override
+  Future<Either<Failure, bool>> concluirAgendamento(int appointmentId) async {
+    try {
+      await _apiClient.dio.post('/appointments/$appointmentId/complete');
+      return const Right(true);
+    } catch (e) {
+      return Left(ServerFailure(_extractErrorMessage(e)));
+    }
+  }
+
+  @override
+  Future<Either<Failure, bool>> atualizarDadosCliente({
+    required int appointmentId,
+    required String fullName,
+    required String phone,
+    required String licensePlate,
+    required String vehicleBrandModel,
+  }) async {
+    try {
+      await _apiClient.dio.patch(
+        '/appointments/$appointmentId/client',
+        data: {
+          'full_name': fullName,
+          'phone': phone,
+          'license_plate': licensePlate,
+          'vehicle_brand_model': vehicleBrandModel,
+        },
+      );
       return const Right(true);
     } catch (e) {
       return Left(ServerFailure(_extractErrorMessage(e)));

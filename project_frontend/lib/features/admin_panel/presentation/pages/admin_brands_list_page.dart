@@ -63,7 +63,7 @@ class _AdminBrandsListView extends StatelessWidget {
                           IconButton(
                             icon: const Icon(Icons.edit_outlined, color: Colors.white54),
                             onPressed: () async {
-                              await context.push('/admin/marcas/editar', extra: marca);
+                              await context.push(AppRouter.adminEditarMarca, extra: marca);
                               if (context.mounted) context.read<AdminBrandProvider>().fetchMarcas();
                             },
                           ),
@@ -76,8 +76,29 @@ class _AdminBrandsListView extends StatelessWidget {
                                   backgroundColor: const Color(0xFF1E1E1E),
                                   title: const Text('Excluir Marca?', style: TextStyle(color: Colors.white)),
                                   actions: [
-                                    TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
-                                    TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Excluir', style: TextStyle(color: Colors.red))),
+                                    TextButton(
+                                      style: TextButton.styleFrom(
+                                          foregroundColor: Colors.white38),
+                                      onPressed: () =>
+                                          Navigator.pop(ctx, false),
+                                      child: const Text('Cancelar'),
+                                    ),
+                                    ElevatedButton(
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor:
+                                            const Color(0xFFC62828),
+                                        foregroundColor: Colors.white,
+                                        shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(8)),
+                                        elevation: 0,
+                                      ),
+                                      onPressed: () =>
+                                          Navigator.pop(ctx, true),
+                                      child: const Text('Excluir',
+                                          style: TextStyle(
+                                              fontWeight: FontWeight.bold)),
+                                    ),
                                   ],
                                 ),
                               );
