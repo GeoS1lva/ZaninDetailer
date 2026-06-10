@@ -1,11 +1,19 @@
 class AdminBrandModel {
-  final String? imagePath;
+  final int id;
+  final String name;
+  final String? imageUrl;
 
-  AdminBrandModel({required this.imagePath});
+  AdminBrandModel({
+    this.id = 0,
+    required this.name,
+    this.imageUrl,
+  });
 
-  Map<String, dynamic> toJson() {
-    return {
-      'image_path': imagePath,
-    };
+  factory AdminBrandModel.fromJson(Map<String, dynamic> json) {
+    return AdminBrandModel(
+      id: json['id'] ?? 0,
+      name: json['name'] ?? '',
+      imageUrl: json['image_url'],
+    );
   }
 }

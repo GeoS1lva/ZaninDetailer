@@ -42,14 +42,38 @@ class AppTheme {
 
   static ThemeData get themeData {
     return ThemeData(
+      useMaterial3: true,
       brightness: Brightness.dark,
       scaffoldBackgroundColor: background,
       primaryColor: primaryRed,
       colorScheme: const ColorScheme.dark(
         primary: primaryRed,
         surface: surface,
+        error: primaryRed,
       ),
       textTheme: _textTheme,
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: primaryRed,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          minimumSize: const Size(double.infinity, 56),
+        ),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: background.withValues(alpha: 0.5),
+        hintStyle: _textTheme.bodyLarge?.copyWith(color: Colors.white30),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+        contentPadding:
+            const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+      ),
     );
   }
 }

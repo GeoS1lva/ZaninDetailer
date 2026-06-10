@@ -1,14 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:intl/date_symbol_data_local.dart';
+import 'package:flutter/services.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'di/injection_container.dart' as di;
-import 'features/client_booking/presentation/providers/service_selection_provider.dart';
-import 'features/client_booking/presentation/providers/booking_provider.dart';
-import 'features/admin_panel/presentation/providers/admin_provider.dart';
-import 'features/admin_panel/presentation/providers/admin_service_provider.dart';
-import 'features/admin_panel/presentation/providers/admin_brand_provider.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 void main() async {
@@ -16,25 +11,18 @@ void main() async {
 
   await initializeDateFormatting('pt_BR', null);
 
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
+  ]);
+
   await di.init();
 
-  runApp(
-    MultiProvider(
-      providers: [
-        ChangeNotifierProvider(
-            create: (_) => di.sl<ServiceSelectionProvider>()),
-        ChangeNotifierProvider(create: (_) => di.sl<AdminServiceProvider>()),
-        ChangeNotifierProvider(create: (_) => di.sl<BookingProvider>()),
-        ChangeNotifierProvider(create: (_) => di.sl<AdminProvider>()),
-        ChangeNotifierProvider(create: (_) => AdminBrandProvider()),
-      ],
-      child: const MyApp(),
-    ),
-  );
+  runApp(const ZaninDetailerApp());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class ZaninDetailerApp extends StatelessWidget {
+  const ZaninDetailerApp({super.key});
 
   @override
   Widget build(BuildContext context) {

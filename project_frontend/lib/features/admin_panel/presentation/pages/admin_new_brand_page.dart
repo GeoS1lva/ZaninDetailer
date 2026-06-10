@@ -6,19 +6,40 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../di/injection_container.dart' as di;
 import '../providers/admin_brand_provider.dart';
+import '../widgets/admin_custom_input.dart';
 import '../widgets/dashed_rect_painter.dart';
 
-class AdminNewBrandPage extends StatefulWidget {
+class AdminNewBrandPage extends StatelessWidget {
   const AdminNewBrandPage({super.key});
 
   @override
-  State<AdminNewBrandPage> createState() => _AdminNewBrandPageState();
+  Widget build(BuildContext context) {
+    return ChangeNotifierProvider(
+      create: (_) => di.sl<AdminBrandProvider>(),
+      child: const _AdminNewBrandView(),
+    );
+  }
 }
 
-class _AdminNewBrandPageState extends State<AdminNewBrandPage> {
+class _AdminNewBrandView extends StatefulWidget {
+  const _AdminNewBrandView();
+
+  @override
+  State<_AdminNewBrandView> createState() => _AdminNewBrandViewState();
+}
+
+class _AdminNewBrandViewState extends State<_AdminNewBrandView> {
   XFile? _image;
   final ImagePicker _picker = ImagePicker();
+  final TextEditingController _nomeController = TextEditingController();
+
+  @override
+  void dispose() {
+    _nomeController.dispose();
+    super.dispose();
+  }
 
   Future<void> _pickImage() async {
     try {
@@ -26,17 +47,40 @@ class _AdminNewBrandPageState extends State<AdminNewBrandPage> {
           source: ImageSource.gallery, imageQuality: 80);
       if (pickedFile != null) setState(() => _image = pickedFile);
     } catch (e) {
-      print("Erro ao selecionar imagem: $e");
+      debugPrint("Erro ao selecionar imagem: $e");
     }
   }
 
   void _removeImage() => setState(() => _image = null);
 
   Future<void> _handleSave() async {
-    final sucesso = await context
-        .read<AdminBrandProvider>()
-        .salvarNovaMarca(imagem: _image);
-    if (sucesso && mounted) context.pop();
+    FocusScope.of(context).unfocus();
+
+    if (_nomeController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('O nome da marca é obrigatório!'),
+          backgroundColor: Colors.redAccent));
+      return;
+    }
+
+    final provider = context.read<AdminBrandProvider>();
+    final sucesso = await provider.salvarNovaMarca(
+      nome: _nomeController.text.trim(),
+      imagem: _image,
+    );
+
+    if (mounted) {
+      if (sucesso) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Marca criada com sucesso!'),
+            backgroundColor: Colors.green));
+        context.pop();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(provider.errorMessage ?? 'Erro ao salvar marca'),
+            backgroundColor: Colors.redAccent));
+      }
+    }
   }
 
   @override
@@ -49,19 +93,17 @@ class _AdminNewBrandPageState extends State<AdminNewBrandPage> {
       body: Stack(
         children: [
           Positioned(
-            top: -100,
-            right: -80,
-            child: Container(
-              width: 350,
-              height: 350,
-              decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AppTheme.primaryRed.withValues(alpha: 0.15)),
-              child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 100, sigmaY: 100),
-                  child: Container(color: Colors.transparent)),
-            ),
-          ),
+              top: -100,
+              right: -80,
+              child: Container(
+                  width: 350,
+                  height: 350,
+                  decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: AppTheme.primaryRed.withValues(alpha: 0.15)),
+                  child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 100, sigmaY: 100),
+                      child: Container(color: Colors.transparent)))),
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24.0),
@@ -70,36 +112,46 @@ class _AdminNewBrandPageState extends State<AdminNewBrandPage> {
                 children: [
                   const SizedBox(height: 20),
                   GestureDetector(
-                    onTap: () => context.pop(),
-                    child: Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                          color: AppTheme.primaryRed.withValues(alpha: 0.3),
-                          shape: BoxShape.circle),
-                      child: const Icon(Icons.arrow_back_ios_new,
-                          color: AppTheme.primaryRed, size: 18),
+                      onTap: () => context.pop(),
+                      child: Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                              color: AppTheme.primaryRed.withValues(alpha: 0.3),
+                              shape: BoxShape.circle),
+                          child: const Icon(Icons.arrow_back_ios_new,
+                              color: AppTheme.primaryRed, size: 18))),
+                  const SizedBox(height: 32),
+                  Text('Nova Marca', style: textTheme.headlineLarge),
+                  const SizedBox(height: 32),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          AdminCustomInput(
+                              hint: 'Nome da Marca',
+                              controller: _nomeController),
+                          const SizedBox(height: 32),
+                          _image == null
+                              ? _buildDashedUploadArea(textTheme)
+                              : _buildImagePreview(),
+                          const SizedBox(height: 40),
+                        ],
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 32),
-                  Text('Gerenciar Marcas', style: textTheme.headlineLarge),
-                  const SizedBox(height: 32),
-                  _image == null
-                      ? _buildDashedUploadArea(textTheme)
-                      : _buildImagePreview(),
-                  const Spacer(),
                   SizedBox(
                     width: double.infinity,
                     height: 56,
                     child: ElevatedButton(
                       onPressed: isLoading ? null : _handleSave,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.primaryRed,
-                        disabledBackgroundColor:
-                            AppTheme.primaryRed.withValues(alpha: 0.5),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                      ),
+                          backgroundColor: AppTheme.primaryRed,
+                          disabledBackgroundColor:
+                              AppTheme.primaryRed.withValues(alpha: 0.5),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12))),
                       child: isLoading
                           ? const SizedBox(
                               width: 24,
@@ -123,28 +175,25 @@ class _AdminNewBrandPageState extends State<AdminNewBrandPage> {
     return GestureDetector(
       onTap: _pickImage,
       child: CustomPaint(
-        painter: DashedRectPainter(
-            color: Colors.white.withValues(alpha: 0.2), strokeWidth: 2, gap: 6),
-        child: Container(
-          width: double.infinity,
-          height: 250,
-          padding: const EdgeInsets.all(24),
-          color: Colors.transparent,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.camera_alt_outlined,
-                  color: Colors.white.withValues(alpha: 0.4), size: 60),
-              const SizedBox(height: 16),
-              Text(
-                'Faça upload de logos de marcas parceiras',
-                textAlign: TextAlign.center,
-                style: textTheme.bodyMedium,
-              ),
-            ],
-          ),
-        ),
-      ),
+          painter: DashedRectPainter(
+              color: Colors.white.withValues(alpha: 0.2),
+              strokeWidth: 2,
+              gap: 6),
+          child: Container(
+              width: double.infinity,
+              height: 200,
+              padding: const EdgeInsets.all(24),
+              color: Colors.transparent,
+              child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.camera_alt_outlined,
+                        color: Colors.white.withValues(alpha: 0.4), size: 60),
+                    const SizedBox(height: 16),
+                    Text('Faça upload da logo da marca',
+                        textAlign: TextAlign.center,
+                        style: textTheme.bodyMedium)
+                  ]))),
     );
   }
 
@@ -153,17 +202,16 @@ class _AdminNewBrandPageState extends State<AdminNewBrandPage> {
       children: [
         Container(
           width: double.infinity,
-          height: 250,
+          height: 200,
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-                color: AppTheme.primaryRed.withValues(alpha: 0.5), width: 2),
-          ),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                  color: AppTheme.primaryRed.withValues(alpha: 0.5), width: 2)),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(10),
             child: kIsWeb
-                ? Image.network(_image!.path, fit: BoxFit.contain)
-                : Image.file(File(_image!.path), fit: BoxFit.contain),
+                ? Image.network(_image!.path, fit: BoxFit.cover)
+                : Image.file(File(_image!.path), fit: BoxFit.cover),
           ),
         ),
         Positioned(
@@ -172,12 +220,11 @@ class _AdminNewBrandPageState extends State<AdminNewBrandPage> {
           child: GestureDetector(
             onTap: _removeImage,
             child: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.7),
-                  shape: BoxShape.circle),
-              child: const Icon(Icons.close, color: Colors.white, size: 20),
-            ),
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.7),
+                    shape: BoxShape.circle),
+                child: const Icon(Icons.close, color: Colors.white, size: 20)),
           ),
         ),
       ],
