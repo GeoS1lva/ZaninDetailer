@@ -130,6 +130,22 @@ class AdminProvider extends ChangeNotifier {
     });
   }
 
+  Future<bool> concluirAgendamento(int appointmentId) async {
+    _agendamentoErrorMessage = null;
+
+    final result = await _repository.concluirAgendamento(appointmentId);
+
+    return result.fold((failure) {
+      debugPrint("Erro ao concluir agendamento: ${failure.message}");
+      _agendamentoErrorMessage = failure.message;
+      notifyListeners();
+      return false;
+    }, (_) async {
+      await fetchAgendamentos();
+      return true;
+    });
+  }
+
   Future<bool> atualizarDadosCliente({
     required int appointmentId,
     required String fullName,
