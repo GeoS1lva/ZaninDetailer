@@ -1,8 +1,9 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.limiter import limiter
 from app.dependencies.auth import AuthenticatedUser
 from app.infra.database import get_db
 from app.schemas.appointment import (
@@ -37,7 +38,9 @@ Svc = Annotated[AppointmentService, Depends(get_svc)]
         "Cada slot já inclui a pausa de 20 minutos entre atendimentos."
     ),
 )
+@limiter.limit("30/minute")
 async def available_slots(
+    request: Request,
     svc: Svc,
     service_id: Annotated[int, Query(gt=0)],
     date: Annotated[str, Query(pattern=r"^\d{4}-\d{2}-\d{2}$", examples=["2025-06-10"])],
@@ -69,8 +72,9 @@ async def get_appointment(
     status_code=status.HTTP_201_CREATED,
     summary="Criar agendamento",
 )
+@limiter.limit("10/minute")
 async def create_appointment(
-    data: AppointmentCreate, svc: Svc
+    request: Request, data: AppointmentCreate, svc: Svc
 ) -> AppointmentResponse:
     appt = await svc.create_appointment(data)
     return AppointmentResponse.model_validate(appt)
@@ -99,6 +103,19 @@ async def cancel_appointment(
     appointment_id: int, data: AppointmentCancel, svc: Svc, _: AuthenticatedUser
 ) -> AppointmentResponse:
     appt = await svc.cancel_appointment(appointment_id, data)
+    return AppointmentResponse.model_validate(appt)
+
+
+@router.post(
+    "/{appointment_id}/complete",
+    response_model=AppointmentResponse,
+    summary="Concluir agendamento [admin]",
+    description="Marca o agendamento como concluído. Requer autenticação de administrador.",
+)
+async def complete_appointment(
+    appointment_id: int, svc: Svc, _: AuthenticatedUser
+) -> AppointmentResponse:
+    appt = await svc.complete_appointment(appointment_id)
     return AppointmentResponse.model_validate(appt)
 
 
