@@ -78,7 +78,6 @@ class AppointmentCreate(BaseModel):
 
 
 class AppointmentReschedule(BaseModel):
-    """Payload para reagendar — apenas o novo horário."""
     scheduled_start: datetime
 
 

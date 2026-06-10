@@ -1,5 +1,6 @@
-from fastapi import APIRouter, status
+from fastapi import APIRouter, Request, status
 
+from app.core.limiter import limiter
 from app.dependencies.auth import AuthenticatedUser
 from app.schemas.auth import (
     LoginRequest,
@@ -23,7 +24,8 @@ svc = AuthService()
     summary="Login",
     description="Autentica com e-mail e senha. Retorna access_token e refresh_token.",
 )
-def login(data: LoginRequest) -> LoginResponse:
+@limiter.limit("5/minute")
+def login(request: Request, data: LoginRequest) -> LoginResponse:
     return svc.login(data)
 
 
@@ -33,7 +35,8 @@ def login(data: LoginRequest) -> LoginResponse:
     summary="Renovar token",
     description="Gera um novo access_token a partir do refresh_token.",
 )
-def refresh_token(data: RefreshTokenRequest) -> LoginResponse:
+@limiter.limit("10/minute")
+def refresh_token(request: Request, data: RefreshTokenRequest) -> LoginResponse:
     return svc.refresh_token(data.refresh_token)
 
 

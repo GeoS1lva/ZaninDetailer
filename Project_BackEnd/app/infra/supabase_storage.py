@@ -1,4 +1,6 @@
 import uuid
+
+import anyio
 from fastapi import HTTPException, UploadFile
 
 from app.infra.supabase_client import get_supabase_admin
@@ -10,7 +12,7 @@ MAX_SIZE_MB = 5
 _MAGIC_BYTES: dict[str, list[bytes]] = {
     "image/jpeg": [b"\xff\xd8\xff"],
     "image/png":  [b"\x89PNG\r\n\x1a\n"],
-    "image/webp": [b"RIFF"],  # verificado junto com offset 8 abaixo
+    "image/webp": [b"RIFF"],
 }
 
 
@@ -20,20 +22,38 @@ def _validate_magic_bytes(content: bytes, content_type: str) -> bool:
         return False
     if not any(content.startswith(sig) for sig in signatures):
         return False
-    # WebP exige "WEBP" nos bytes 8–12 além do "RIFF" inicial
     if content_type == "image/webp" and content[8:12] != b"WEBP":
         return False
     return True
 
 
-def upload_image(file: UploadFile) -> str:
+def _do_upload(content: bytes, filename: str, content_type: str) -> str:
+    admin = get_supabase_admin()
+    admin.storage.from_(BUCKET).upload(
+        path=filename,
+        file=content,
+        file_options={"content-type": content_type, "upsert": "false"},
+    )
+    return admin.storage.from_(BUCKET).get_public_url(filename)
+
+
+def _do_delete(url: str) -> None:
+    try:
+        filename = url.split(f"{BUCKET}/")[-1]
+        admin = get_supabase_admin()
+        admin.storage.from_(BUCKET).remove([filename])
+    except Exception:
+        pass
+
+
+async def upload_image(file: UploadFile) -> str:
     if file.content_type not in ALLOWED_TYPES:
         raise HTTPException(
             status_code=400,
             detail="Formato inválido. Use JPEG, PNG ou WebP.",
         )
 
-    content = file.file.read()
+    content = await file.read()
 
     if len(content) > MAX_SIZE_MB * 1024 * 1024:
         raise HTTPException(
@@ -50,21 +70,10 @@ def upload_image(file: UploadFile) -> str:
     extension = file.content_type.split("/")[-1].replace("jpeg", "jpg")
     filename = f"{uuid.uuid4()}.{extension}"
 
-    admin = get_supabase_admin()
-    admin.storage.from_(BUCKET).upload(
-        path=filename,
-        file=content,
-        file_options={"content-type": file.content_type, "upsert": "false"},
+    return await anyio.to_thread.run_sync(
+        lambda: _do_upload(content, filename, file.content_type)
     )
 
-    public_url = admin.storage.from_(BUCKET).get_public_url(filename)
-    return public_url
 
-
-def delete_image(url: str) -> None:
-    try:
-        filename = url.split(f"{BUCKET}/")[-1]
-        admin = get_supabase_admin()
-        admin.storage.from_(BUCKET).remove([filename])
-    except Exception:
-        pass
+async def delete_image(url: str) -> None:
+    await anyio.to_thread.run_sync(lambda: _do_delete(url))

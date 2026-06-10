@@ -86,7 +86,6 @@ class AuthService:
 
     def update_password(self, data: PasswordUpdateRequest) -> dict:
         try:
-            # Valida o token e obtém o user_id sem mutar estado do cliente singleton
             supabase = get_supabase_client()
             user_response = supabase.auth.get_user(data.access_token)
             if not user_response or not user_response.user:
@@ -97,7 +96,6 @@ class AuthService:
 
             user_id = str(user_response.user.id)
 
-            # Atualiza via admin (sem afetar o estado interno do cliente anon)
             admin = get_supabase_admin()
             admin.auth.admin.update_user_by_id(user_id, {"password": data.new_password})
             return {"message": "Senha atualizada com sucesso."}
