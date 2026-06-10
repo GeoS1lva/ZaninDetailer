@@ -8,6 +8,7 @@ import '../../../../core/router/app_router.dart';
 import '../providers/booking_provider.dart';
 import '../../../../features/client_booking/data/models/service_model.dart';
 import '../widgets/booking_confirmation_step.dart';
+import '../../../../core/utils/string_utils.dart';
 
 class BookingPage extends StatefulWidget {
   final ServiceModel service;
@@ -24,7 +25,9 @@ class _BookingPageState extends State<BookingPage> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<BookingProvider>().setService(widget.service);
+      if (mounted) {
+        context.read<BookingProvider>().setService(widget.service);
+      }
     });
   }
 
@@ -32,11 +35,6 @@ class _BookingPageState extends State<BookingPage> {
   void dispose() {
     _pageController.dispose();
     super.dispose();
-  }
-
-  String _capitalize(String text) {
-    if (text.isEmpty) return text;
-    return text[0].toUpperCase() + text.substring(1).toLowerCase();
   }
 
   List<DateTime> _getUpcomingSaturdays() {
@@ -54,31 +52,50 @@ class _BookingPageState extends State<BookingPage> {
     final DateTime now = DateTime.now();
     final DateTime lastDayOfNextMonth = DateTime(now.year, now.month + 2, 0);
 
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      locale: const Locale('pt', 'BR'),
-      initialDate: provider.selectedDate.weekday == DateTime.saturday
-          ? provider.selectedDate
-          : _getUpcomingSaturdays().first,
-      firstDate: now,
-      lastDate: lastDayOfNextMonth,
-      selectableDayPredicate: (DateTime day) =>
-          day.weekday == DateTime.saturday,
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.dark(
-                primary: AppTheme.primaryRed,
-                onPrimary: Colors.white,
-                surface: AppTheme.surface,
-                onSurface: Colors.white),
-            dialogBackgroundColor: AppTheme.background,
-          ),
-          child: child!,
-        );
-      },
-    );
-    if (picked != null) provider.selectDate(picked);
+    if (!context.mounted) return;
+
+    try {
+      final DateTime? picked = await showDatePicker(
+        context: context,
+        locale: const Locale('pt', 'BR'),
+        initialDate: provider.selectedDate.weekday == DateTime.saturday
+            ? provider.selectedDate
+            : _getUpcomingSaturdays().first,
+        firstDate: now,
+        lastDate: lastDayOfNextMonth,
+        selectableDayPredicate: (DateTime day) =>
+            day.weekday == DateTime.saturday,
+        builder: (context, child) {
+          return Theme(
+            data: Theme.of(context).copyWith(
+              colorScheme: const ColorScheme.dark(
+                  primary: AppTheme.primaryRed,
+                  onPrimary: Colors.white,
+                  surface: AppTheme.surface,
+                  onSurface: Colors.white),
+              dialogTheme: const DialogThemeData(
+                backgroundColor: AppTheme.background,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.all(Radius.circular(16)),
+                ),
+              ),
+            ),
+            child: child!,
+          );
+        },
+      );
+      if (picked != null) provider.selectDate(picked);
+    } catch (e) {
+      debugPrint("Erro nativo ao abrir o DatePicker: $e");
+      final DateTime? pickedFallback = await showDatePicker(
+        context: context,
+        firstDate: now,
+        initialDate: _getUpcomingSaturdays().first,
+        lastDate: lastDayOfNextMonth,
+      );
+      if (pickedFallback != null) provider.selectDate(pickedFallback);
+    }
   }
 
   @override
@@ -86,6 +103,7 @@ class _BookingPageState extends State<BookingPage> {
     final bookingProvider = context.watch<BookingProvider>();
     final service = widget.service;
     final textTheme = Theme.of(context).textTheme;
+    final bool isWebImage = service.imageUrl.startsWith('http');
 
     return Scaffold(
       backgroundColor: AppTheme.background,
@@ -95,156 +113,178 @@ class _BookingPageState extends State<BookingPage> {
         children: [
           Stack(
             children: [
-              SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Stack(
-                      children: [
-                        SizedBox(
-                            height: 380,
-                            width: double.infinity,
-                            child: Image.asset(service.imageUrl,
-                                fit: BoxFit.cover)),
-                        Container(
-                          height: 380,
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [
-                                Colors.black.withValues(alpha: 0.3),
-                                Colors.transparent,
-                                AppTheme.background.withValues(alpha: 0.8),
-                                AppTheme.background
-                              ],
-                              stops: const [0.0, 0.4, 0.8, 1.0],
-                            ),
-                          ),
-                        ),
-                        Positioned(
-                          top: 50,
-                          left: 20,
-                          child: GestureDetector(
-                            onTap: () => context.go(AppRouter.services),
-                            child: Container(
-                              width: 40,
-                              height: 40,
-                              decoration: BoxDecoration(
-                                  color: AppTheme.primaryRed
-                                      .withValues(alpha: 0.3),
-                                  shape: BoxShape.circle),
-                              child: const Icon(Icons.arrow_back_ios_new,
-                                  color: Colors.white, size: 18),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(service.title,
-                              style: textTheme.headlineLarge
-                                  ?.copyWith(fontSize: 26)),
-                          const SizedBox(height: 8),
-                          Text(
-                              'Duração: ~${service.duration} • R\$ ${service.price.toStringAsFixed(2).replaceAll('.', ',')}',
-                              style: textTheme.bodyMedium),
-                          const SizedBox(height: 40),
-                          Stack(
-                            clipBehavior: Clip.none,
-                            children: [
-                              Positioned.fill(
-                                child: Align(
-                                  alignment: Alignment.center,
-                                  child: Container(
-                                    height: 200,
-                                    decoration: BoxDecoration(
-                                        color: Colors.transparent,
-                                        shape: BoxShape.circle,
-                                        boxShadow: [
-                                          BoxShadow(
-                                              color: AppTheme.primaryRed
-                                                  .withValues(alpha: 0.05),
-                                              blurRadius: 80,
-                                              spreadRadius: 20)
-                                        ]),
-                                  ),
-                                ),
-                              ),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Text('Data e Horário',
-                                          style: textTheme.titleLarge),
-                                      IconButton(
-                                        icon: const Icon(Icons.calendar_month,
-                                            color: AppTheme.primaryRed,
-                                            size: 26),
-                                        onPressed: () => _openFullCalendar(
-                                            context, bookingProvider),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 20),
-                                  SizedBox(
-                                      height: 130,
-                                      child: _buildHorizontalCalendar(
-                                          bookingProvider, textTheme)),
-                                  const SizedBox(height: 30),
-                                  if (bookingProvider.isLoadingHours)
-                                    const Center(
-                                        child: CircularProgressIndicator(
-                                            color: AppTheme.primaryRed))
-                                  else if (bookingProvider
-                                      .availableHours.isEmpty)
-                                    Padding(
-                                      padding: const EdgeInsets.all(20.0),
-                                      child: Text('Nenhum horário disponível.',
-                                          style: textTheme.bodyMedium),
-                                    )
-                                  else
-                                    _buildTimeSlots(
-                                        context, bookingProvider, textTheme),
-                                ],
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 120),
-                        ],
+              Positioned(
+                top: -80,
+                right: -80,
+                child: Container(
+                  width: 320,
+                  height: 320,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.transparent,
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppTheme.primaryRed.withValues(alpha: 0.15),
+                        blurRadius: 120,
+                        spreadRadius: 40,
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
-              Align(
-                alignment: Alignment.bottomCenter,
+              Positioned.fill(
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Stack(
+                        children: [
+                          SizedBox(
+                              height: 380,
+                              width: double.infinity,
+                              child: isWebImage
+                                  ? Image.network(
+                                      service.imageUrl,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (c, e, s) => Image.asset(
+                                          'assets/images/welcome_car.jpg',
+                                          fit: BoxFit.cover),
+                                    )
+                                  : Image.asset(
+                                      service.imageUrl.isNotEmpty
+                                          ? service.imageUrl
+                                          : 'assets/images/welcome_car.jpg',
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (c, e, s) => Image.asset(
+                                          'assets/images/welcome_car.jpg',
+                                          fit: BoxFit.cover),
+                                    )),
+                          Container(
+                            height: 380,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [
+                                  Colors.black.withValues(alpha: 0.3),
+                                  Colors.transparent,
+                                  AppTheme.background.withValues(alpha: 0.8),
+                                  AppTheme.background
+                                ],
+                                stops: const [0.0, 0.4, 0.8, 1.0],
+                              ),
+                            ),
+                          ),
+                          Positioned(
+                            top: 50,
+                            left: 20,
+                            child: GestureDetector(
+                              onTap: () => context.go(AppRouter.services),
+                              child: Container(
+                                width: 40,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                    color: AppTheme.primaryRed
+                                        .withValues(alpha: 0.3),
+                                    shape: BoxShape.circle),
+                                child: const Icon(Icons.arrow_back_ios_new,
+                                    color: Colors.white, size: 18),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(service.title,
+                                style: textTheme.headlineLarge
+                                    ?.copyWith(fontSize: 26)),
+                            const SizedBox(height: 8),
+                            Text(
+                                'Duração: ~${service.duration} • R\$ ${service.price.toStringAsFixed(2).replaceAll('.', ',')}',
+                                style: textTheme.bodyMedium),
+                            const SizedBox(height: 40),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text('Data e Horário',
+                                        style: textTheme.titleLarge),
+                                    IconButton(
+                                      icon: const Icon(Icons.calendar_month,
+                                          color: AppTheme.primaryRed, size: 26),
+                                      onPressed: () => _openFullCalendar(
+                                          context, bookingProvider),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 20),
+                                SizedBox(
+                                    height: 130,
+                                    child: _buildHorizontalCalendar(
+                                        bookingProvider, textTheme)),
+                                const SizedBox(height: 30),
+                                if (bookingProvider.isLoadingHours)
+                                  const Center(
+                                      child: CircularProgressIndicator(
+                                          color: AppTheme.primaryRed))
+                                else if (bookingProvider.availableHours.isEmpty)
+                                  Padding(
+                                    padding: const EdgeInsets.all(20.0),
+                                    child: Text('Nenhum horário disponível.',
+                                        style: textTheme.bodyMedium),
+                                  )
+                                else
+                                  _buildTimeSlots(
+                                      context, bookingProvider, textTheme),
+                              ],
+                            ),
+                            const SizedBox(height: 140),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
                 child: Container(
-                  padding: const EdgeInsets.all(24),
+                  padding: const EdgeInsets.fromLTRB(24, 40, 24, 24),
                   decoration: BoxDecoration(
                       gradient: LinearGradient(
                           begin: Alignment.topCenter,
                           end: Alignment.bottomCenter,
                           colors: [
                         AppTheme.background.withValues(alpha: 0.0),
-                        AppTheme.background
+                        AppTheme.background.withValues(alpha: 0.85),
+                        AppTheme.background,
+                      ],
+                          stops: const [
+                        0.0,
+                        0.3,
+                        1.0
                       ])),
-                  child: SwipeToProceedButton(
-                    isActive: bookingProvider.selectedTime != null,
-                    textTheme: textTheme,
-                    onSwipe: () {
-                      _pageController.nextPage(
-                        duration: const Duration(milliseconds: 300),
-                        curve: Curves.easeInOut,
-                      );
-                    },
+                  child: SafeArea(
+                    top: false,
+                    child: SwipeToProceedButton(
+                      isActive: bookingProvider.selectedTime != null,
+                      textTheme: textTheme,
+                      onSwipe: () {
+                        _pageController.nextPage(
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeInOut,
+                        );
+                      },
+                    ),
                   ),
                 ),
               ),
@@ -278,9 +318,17 @@ class _BookingPageState extends State<BookingPage> {
       itemBuilder: (context, index) {
         final date = days[index];
         final isSelected = DateUtils.isSameDay(date, provider.selectedDate);
-        final dayNumber = DateFormat('d').format(date);
-        final dayOfWeek = _capitalize(
-            DateFormat('E', 'pt_BR').format(date).replaceAll('.', ''));
+
+        String dayNumber = '';
+        String weekday = '';
+        try {
+          dayNumber = DateFormat('d').format(date);
+          weekday =
+              StringUtils.capitalize(DateFormat('E', 'pt_BR').format(date));
+        } catch (e) {
+          dayNumber = date.day.toString();
+          weekday = index == 0 ? 'Sáb' : 'Sábado';
+        }
 
         return GestureDetector(
           onTap: () => provider.selectDate(date),
@@ -314,7 +362,7 @@ class _BookingPageState extends State<BookingPage> {
                             isSelected ? FontWeight.bold : FontWeight.w600,
                         color: Colors.white)),
                 const SizedBox(height: 6),
-                Text(dayOfWeek,
+                Text(weekday,
                     style: textTheme.bodyLarge?.copyWith(
                         fontSize: 18,
                         color: isSelected ? Colors.white : Colors.grey[400])),

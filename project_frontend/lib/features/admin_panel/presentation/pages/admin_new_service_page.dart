@@ -6,24 +6,38 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../di/injection_container.dart' as di;
 import '../providers/admin_service_provider.dart';
 import '../widgets/admin_custom_input.dart';
 import '../widgets/dashed_rect_painter.dart';
 
-class AdminNewServicePage extends StatefulWidget {
+class AdminNewServicePage extends StatelessWidget {
   const AdminNewServicePage({super.key});
 
   @override
-  State<AdminNewServicePage> createState() => _AdminNewServicePageState();
+  Widget build(BuildContext context) {
+    return ChangeNotifierProvider(
+      create: (_) => di.sl<AdminServiceProvider>(),
+      child: const _AdminNewServiceView(),
+    );
+  }
 }
 
-class _AdminNewServicePageState extends State<AdminNewServicePage> {
+class _AdminNewServiceView extends StatefulWidget {
+  const _AdminNewServiceView();
+
+  @override
+  State<_AdminNewServiceView> createState() => _AdminNewServiceViewState();
+}
+
+class _AdminNewServiceViewState extends State<_AdminNewServiceView> {
   XFile? _image;
   final ImagePicker _picker = ImagePicker();
 
   final TextEditingController _nomeController = TextEditingController();
   final TextEditingController _precoController = TextEditingController();
   final TextEditingController _tempoController = TextEditingController();
+  final TextEditingController _descricaoController = TextEditingController();
 
   @override
   void dispose() {
@@ -41,7 +55,7 @@ class _AdminNewServicePageState extends State<AdminNewServicePage> {
       );
       if (pickedFile != null) setState(() => _image = pickedFile);
     } catch (e) {
-      print("Erro ao selecionar imagem: $e");
+      debugPrint("Erro ao selecionar imagem: $e");
     }
   }
 
@@ -49,14 +63,44 @@ class _AdminNewServicePageState extends State<AdminNewServicePage> {
 
   Future<void> _handleSave() async {
     FocusScope.of(context).unfocus();
+
+    if (_nomeController.text.trim().isEmpty ||
+        _precoController.text.trim().isEmpty ||
+        _tempoController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Preencha todos os campos!'),
+            backgroundColor: Colors.redAccent),
+      );
+      return;
+    }
+
     final provider = context.read<AdminServiceProvider>();
+
     final sucesso = await provider.salvarNovoServico(
       nome: _nomeController.text.trim(),
-      preco: _precoController.text.trim(),
+      preco: _precoController.text.trim().replaceAll(',', '.'),
       tempoEstimado: _tempoController.text.trim(),
+      descricao: _descricaoController.text.trim(),
       imagem: _image,
     );
-    if (sucesso && mounted) context.pop();
+
+    if (mounted) {
+      if (sucesso) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Serviço criado com sucesso!'),
+              backgroundColor: Colors.green),
+        );
+        context.pop();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text(provider.errorMessage ?? 'Erro ao salvar serviço'),
+              backgroundColor: Colors.redAccent),
+        );
+      }
+    }
   }
 
   @override
@@ -115,14 +159,22 @@ class _AdminNewServicePageState extends State<AdminNewServicePage> {
                               controller: _nomeController),
                           const SizedBox(height: 16),
                           AdminCustomInput(
-                              hint: 'Preço',
-                              prefixText: 'R\$ ',
-                              controller: _precoController,
-                              keyboardType: TextInputType.number),
+                            hint: 'Descrição do Serviço (Opcional)',
+                            controller: _descricaoController,
+                          ),
                           const SizedBox(height: 16),
                           AdminCustomInput(
-                              hint: 'Tempo Estimado (ex: 2h 30m)',
-                              controller: _tempoController),
+                              hint: 'Preço (ex: 150.00)',
+                              prefixText: 'R\$ ',
+                              controller: _precoController,
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(
+                                      decimal: true)),
+                          const SizedBox(height: 16),
+                          AdminCustomInput(
+                              hint: 'Duração em minutos (ex: 120)',
+                              controller: _tempoController,
+                              keyboardType: TextInputType.number),
                           const SizedBox(height: 32),
                           _image == null
                               ? _buildDashedUploadArea(textTheme)

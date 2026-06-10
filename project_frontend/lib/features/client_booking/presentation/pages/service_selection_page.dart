@@ -2,19 +2,36 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:zanin_detailer/core/utils/string_utils.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/router/app_router.dart';
 import '../providers/service_selection_provider.dart';
 import '../../../../features/client_booking/data/models/service_model.dart';
+import '../../../../di/injection_container.dart' as di;
+import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../admin_panel/presentation/widgets/admin_custom_input.dart';
 
-class ServiceSelectionPage extends StatefulWidget {
+class ServiceSelectionPage extends StatelessWidget {
   const ServiceSelectionPage({super.key});
 
   @override
-  State<ServiceSelectionPage> createState() => _ServiceSelectionPageState();
+  Widget build(BuildContext context) {
+    return ChangeNotifierProvider(
+      create: (_) => di.sl<ServiceSelectionProvider>(),
+      child: const _ServiceSelectionContent(),
+    );
+  }
 }
 
-class _ServiceSelectionPageState extends State<ServiceSelectionPage> {
+class _ServiceSelectionContent extends StatefulWidget {
+  const _ServiceSelectionContent();
+
+  @override
+  State<_ServiceSelectionContent> createState() =>
+      _ServiceSelectionContentState();
+}
+
+class _ServiceSelectionContentState extends State<_ServiceSelectionContent> {
   @override
   void initState() {
     super.initState();
@@ -36,8 +53,13 @@ class _ServiceSelectionPageState extends State<ServiceSelectionPage> {
           filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
           child: ScaleTransition(
             scale: Tween<double>(begin: 0.9, end: 1.0).animate(anim1),
-            child:
-                FadeTransition(opacity: anim1, child: const AdminLoginDialog()),
+            child: FadeTransition(
+              opacity: anim1,
+              child: ChangeNotifierProvider(
+                create: (_) => di.sl<AuthProvider>(),
+                child: const AdminLoginDialog(),
+              ),
+            ),
           ),
         );
       },
@@ -95,10 +117,16 @@ class _ServiceSelectionPageState extends State<ServiceSelectionPage> {
                             children: [
                               _buildSectionTitle(
                                   'Escolha o Serviço', textTheme),
-                              IconButton(
-                                icon: const Icon(Icons.manage_accounts,
-                                    color: AppTheme.textSecondary, size: 28),
-                                onPressed: () => _showLoginModal(context),
+                              Row(
+                                children: [
+                                  IconButton(
+                                    icon: const Icon(Icons.manage_accounts,
+                                        color: AppTheme.textSecondary,
+                                        size: 28),
+                                    onPressed: () => _showLoginModal(context),
+                                    tooltip: 'Acesso Restrito',
+                                  ),
+                                ],
                               ),
                             ],
                           ),
@@ -120,7 +148,7 @@ class _ServiceSelectionPageState extends State<ServiceSelectionPage> {
                       ),
                       SliverPadding(
                         padding: const EdgeInsets.only(
-                            top: 40, left: 20, right: 20, bottom: 24),
+                            top: 64, left: 20, right: 20, bottom: 24),
                         sliver: SliverToBoxAdapter(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -131,14 +159,14 @@ class _ServiceSelectionPageState extends State<ServiceSelectionPage> {
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.start,
                                 children: provider.brandLogos
-                                    .map((logoPath) => Padding(
+                                    .map((logoUrl) => Padding(
                                           padding:
                                               const EdgeInsets.only(right: 32),
                                           child: ColorFiltered(
                                             colorFilter: const ColorFilter.mode(
                                                 Colors.grey, BlendMode.srcATop),
-                                            child: Image.asset(
-                                              logoPath,
+                                            child: Image.network(
+                                              logoUrl,
                                               height: 60,
                                               fit: BoxFit.contain,
                                               errorBuilder: (c, e, s) =>
@@ -167,7 +195,7 @@ class _ServiceSelectionPageState extends State<ServiceSelectionPage> {
                       ),
                       SliverPadding(
                         padding:
-                            const EdgeInsets.only(top: 40, left: 20, right: 20),
+                            const EdgeInsets.only(top: 64, left: 20, right: 20),
                         sliver: SliverToBoxAdapter(
                           child: _buildSectionTitle(
                               'Últimos Trabalhos', textTheme),
@@ -197,6 +225,9 @@ class _ServiceSelectionPageState extends State<ServiceSelectionPage> {
 
   Widget _buildServiceCard(
       BuildContext context, ServiceModel service, TextTheme textTheme) {
+    final bool hasValidImage =
+        service.imageUrl.isNotEmpty && service.imageUrl.startsWith('http');
+
     return GestureDetector(
       onTap: () => context.go(AppRouter.booking, extra: service),
       child: Container(
@@ -206,7 +237,10 @@ class _ServiceSelectionPageState extends State<ServiceSelectionPage> {
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
           image: DecorationImage(
-            image: AssetImage(service.imageUrl),
+            image: hasValidImage
+                ? NetworkImage(service.imageUrl)
+                : const AssetImage('assets/images/welcome_car.jpg')
+                    as ImageProvider,
             fit: BoxFit.cover,
           ),
         ),
@@ -248,7 +282,7 @@ class _ServiceSelectionPageState extends State<ServiceSelectionPage> {
                             ),
                             const SizedBox(height: 6),
                             Text(
-                              'Duração: ~${service.duration} • R\$ ${service.price.toStringAsFixed(2).replaceAll('.', ',')}',
+                              'Duração: ~${service.duration} • ${StringUtils.formatCurrency(service.price)}',
                               style: textTheme.bodyMedium?.copyWith(
                                 color: Colors.grey[300],
                                 fontSize: 13,
@@ -282,12 +316,16 @@ class _ServiceSelectionPageState extends State<ServiceSelectionPage> {
   }
 
   Widget _buildWorkImage(String img) {
+    final bool isWeb = img.startsWith('http');
     return Container(
       width: 280,
       margin: const EdgeInsets.only(right: 16),
       decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(20),
-          image: DecorationImage(image: AssetImage(img), fit: BoxFit.cover)),
+          image: DecorationImage(
+              image:
+                  isWeb ? NetworkImage(img) : AssetImage(img) as ImageProvider,
+              fit: BoxFit.cover)),
     );
   }
 }
@@ -300,48 +338,25 @@ class AdminLoginDialog extends StatefulWidget {
 
 class _AdminLoginDialogState extends State<AdminLoginDialog> {
   bool _isPasswordObscured = true;
-  bool _isLoading = false;
-  final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _passwordController = TextEditingController();
 
-  @override
-  void dispose() {
-    _emailController.dispose();
-    _passwordController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _handleLogin() async {
+  Future<void> _handleLogin(AuthProvider authProvider) async {
     FocusScope.of(context).unfocus();
-    setState(() => _isLoading = true);
-    await Future.delayed(const Duration(seconds: 2));
+    authProvider.clearError();
 
-    final email = _emailController.text.trim();
-    final senha = _passwordController.text.trim();
+    final success = await authProvider.login();
 
-    if (email == 'admin@zanin.com' && senha == 'admin123') {
+    if (success) {
       if (mounted) {
-        context.pop();
-        context.go('/admin');
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Login realizado com sucesso!',
-                style: Theme.of(context).textTheme.bodyMedium),
-            backgroundColor: Colors.green));
-      }
-    } else {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Email ou senha incorretos.',
-                style: Theme.of(context).textTheme.bodyMedium),
-            backgroundColor: AppTheme.primaryRed));
+        context.go(AppRouter.admin, extra: const {'showLoginSuccess': true});
       }
     }
-    if (mounted) setState(() => _isLoading = false);
   }
 
   @override
   Widget build(BuildContext context) {
+    final authProvider = context.watch<AuthProvider>();
     final textTheme = Theme.of(context).textTheme;
+
     return Dialog(
       backgroundColor: Colors.transparent,
       insetPadding: const EdgeInsets.symmetric(horizontal: 20),
@@ -361,29 +376,65 @@ class _AdminLoginDialogState extends State<AdminLoginDialog> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                _buildInput(
-                    controller: _emailController,
-                    hint: 'Email',
-                    icon: Icons.email_outlined,
-                    enabled: !_isLoading,
-                    textTheme: textTheme),
+                if (authProvider.errorMessage != null)
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    margin: const EdgeInsets.only(bottom: 20),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryRed.withValues(alpha: 0.1),
+                      border: Border.all(
+                          color: AppTheme.primaryRed.withValues(alpha: 0.5)),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.error_outline,
+                            color: AppTheme.primaryRed, size: 22),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            authProvider.errorMessage!,
+                            style: textTheme.bodyMedium?.copyWith(
+                              color: AppTheme.primaryRed,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                AdminCustomInput(
+                  controller: authProvider.emailController,
+                  hint: 'Email',
+                  prefixIcon: Icons.email_outlined,
+                  keyboardType: TextInputType.emailAddress,
+                  enabled: !authProvider.isLoading,
+                ),
                 const SizedBox(height: 16),
-                _buildInput(
-                    controller: _passwordController,
-                    hint: 'Senha',
-                    icon: Icons.lock_outline,
-                    isPassword: true,
-                    isObscured: _isPasswordObscured,
-                    enabled: !_isLoading,
-                    onToggleVisibility: () => setState(
+                AdminCustomInput(
+                  controller: authProvider.passwordController,
+                  hint: 'Senha',
+                  prefixIcon: Icons.lock_outline,
+                  obscureText: _isPasswordObscured,
+                  enabled: !authProvider.isLoading,
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                        _isPasswordObscured
+                            ? Icons.visibility_off_outlined
+                            : Icons.visibility_outlined,
+                        color: AppTheme.primaryRed.withValues(alpha: 0.7)),
+                    onPressed: () => setState(
                         () => _isPasswordObscured = !_isPasswordObscured),
-                    textTheme: textTheme),
+                  ),
+                ),
                 const SizedBox(height: 32),
                 SizedBox(
                   width: double.infinity,
                   height: 55,
                   child: ElevatedButton(
-                    onPressed: _isLoading ? null : _handleLogin,
+                    onPressed: authProvider.isLoading
+                        ? null
+                        : () => _handleLogin(authProvider),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.primaryRed,
                       disabledBackgroundColor:
@@ -392,7 +443,7 @@ class _AdminLoginDialogState extends State<AdminLoginDialog> {
                           borderRadius: BorderRadius.circular(16)),
                       elevation: 0,
                     ),
-                    child: _isLoading
+                    child: authProvider.isLoading
                         ? const SizedBox(
                             height: 24,
                             width: 24,
@@ -401,6 +452,51 @@ class _AdminLoginDialogState extends State<AdminLoginDialog> {
                         : Text('Acessar Painel',
                             style:
                                 textTheme.labelLarge?.copyWith(fontSize: 18)),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextButton(
+                  onPressed: authProvider.isLoading
+                      ? null
+                      : () async {
+                          authProvider.clearError();
+                          final email =
+                              authProvider.emailController.text.trim();
+
+                          if (email.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                              content: Text(
+                                  'Preencha o campo de e-mail primeiro!',
+                                  style: textTheme.bodyMedium),
+                              backgroundColor: AppTheme.primaryRed,
+                            ));
+                            return;
+                          }
+
+                          final success =
+                              await authProvider.forgotPassword(email);
+                          if (success && mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                              content: Text(
+                                  'Link de recuperação enviado para $email',
+                                  style: textTheme.bodyMedium
+                                      ?.copyWith(color: Colors.white)),
+                              backgroundColor: const Color(0xFF4CAF50),
+                              behavior: SnackBarBehavior.floating,
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16)),
+                              margin: const EdgeInsets.only(
+                                  bottom: 30, left: 24, right: 24),
+                            ));
+                            context.pop();
+                          }
+                        },
+                  child: Text(
+                    'Esqueci minha senha',
+                    style: textTheme.bodyMedium?.copyWith(
+                      color: Colors.white.withValues(alpha: 0.6),
+                      decoration: TextDecoration.underline,
+                    ),
                   ),
                 ),
               ],
@@ -425,47 +521,6 @@ class _AdminLoginDialogState extends State<AdminLoginDialog> {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildInput(
-      {required TextEditingController controller,
-      required String hint,
-      required IconData icon,
-      bool isPassword = false,
-      bool isObscured = false,
-      bool enabled = true,
-      VoidCallback? onToggleVisibility,
-      required TextTheme textTheme}) {
-    return Container(
-      decoration: BoxDecoration(
-          color: const Color(0xFF121212),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.1))),
-      child: TextField(
-        controller: controller,
-        obscureText: isPassword ? isObscured : false,
-        enabled: enabled,
-        style: textTheme.bodyLarge
-            ?.copyWith(color: enabled ? Colors.white : Colors.grey),
-        decoration: InputDecoration(
-          hintText: hint,
-          hintStyle: textTheme.bodyLarge
-              ?.copyWith(color: Colors.white.withValues(alpha: 0.3)),
-          prefixIcon: Icon(icon, color: Colors.white.withValues(alpha: 0.3)),
-          suffixIcon: isPassword
-              ? IconButton(
-                  icon: Icon(
-                      isObscured
-                          ? Icons.visibility_off_outlined
-                          : Icons.visibility_outlined,
-                      color: AppTheme.primaryRed.withValues(alpha: 0.7)),
-                  onPressed: onToggleVisibility)
-              : null,
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(vertical: 15),
-        ),
       ),
     );
   }
